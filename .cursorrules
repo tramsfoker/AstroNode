@@ -1,0 +1,25 @@
+# AstroNode — Agent Direktifleri
+
+## Zorunlu Referans
+Her görev başlamadan önce MASTERPLAN.md dosyasını oku ve ilgili bölümü referans al.
+
+## Teknoloji
+- Kotlin, Jetpack Compose (Material3), MVVM + Clean Architecture
+- Hilt (DI), Coroutines + Flow (async), usb-serial-for-android (USB)
+- Firebase Anonymous Auth + Firestore, Google Maps SDK (maps-compose)
+- Min SDK 24, Target SDK 34, Package: com.baak.astronode
+
+## Kod Stili
+- Değişken/fonksiyon/sınıf adları: İngilizce
+- Yorumlar: Türkçe
+- Hardcoded değer yasak → AppConstants.kt kullan
+- Force unwrap (!!) yasak
+- Callback yasak → suspend function + Flow
+
+## UI Kuralları (KRİTİK)
+- SADECE Dark Theme. Color.White YASAK. Parlak renk YASAK.
+- Renk paleti MASTERPLAN.md Bölüm 4.1'de tanımlı.
+- Tüm renkler tema üzerinden gelmeli.
+
+## Paket Yapısı
+MASTERPLAN.md Bölüm 2'deki yapıya uy. Yeni dosya oluştururken doğru pakete koy.
