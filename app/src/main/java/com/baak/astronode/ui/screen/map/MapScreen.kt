@@ -59,6 +59,8 @@ private fun formatInfoWindow(m: SkyMeasurement): String {
 
 @Composable
 fun MapScreen(
+    initialFocusLat: Double? = null,
+    initialFocusLng: Double? = null,
     viewModel: MapViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
@@ -68,10 +70,22 @@ fun MapScreen(
     var selectedMeasurement by remember { mutableStateOf<SkyMeasurement?>(null) }
 
     val cameraPositionState = rememberCameraPositionState {
-        position = CameraPosition.fromLatLngZoom(
-            LatLng(BURSA_LAT, BURSA_LNG),
-            DEFAULT_ZOOM
-        )
+        val (lat, lng) = when {
+            initialFocusLat != null && initialFocusLng != null -> initialFocusLat to initialFocusLng
+            else -> BURSA_LAT to BURSA_LNG
+        }
+        position = CameraPosition.fromLatLngZoom(LatLng(lat, lng), DEFAULT_ZOOM)
+    }
+
+    LaunchedEffect(initialFocusLat, initialFocusLng) {
+        if (initialFocusLat != null && initialFocusLng != null) {
+            cameraPositionState.animate(
+                CameraUpdateFactory.newLatLngZoom(
+                    LatLng(initialFocusLat, initialFocusLng),
+                    DEFAULT_ZOOM
+                )
+            )
+        }
     }
 
     val mapProperties = remember {

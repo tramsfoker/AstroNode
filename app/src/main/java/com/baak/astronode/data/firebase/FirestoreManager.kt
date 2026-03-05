@@ -9,6 +9,7 @@ import com.google.firebase.firestore.Query
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -43,6 +44,9 @@ class FirestoreManager @Inject constructor() {
     } catch (e: Exception) {
         Result.failure(e)
     }
+
+    suspend fun getMeasurementsOnce(): List<SkyMeasurement> =
+        getMeasurements().first()
 
     fun getMeasurements(): Flow<List<SkyMeasurement>> = callbackFlow {
         val registration = collection

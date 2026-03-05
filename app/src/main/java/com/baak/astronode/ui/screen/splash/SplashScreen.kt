@@ -73,5 +73,11 @@ fun SplashScreen(
             style = MaterialTheme.typography.bodyMedium,
             color = TextSecondary
         )
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(
+            text = "v1.0.0",
+            style = MaterialTheme.typography.labelSmall,
+            color = TextSecondary
+        )
     }
 }

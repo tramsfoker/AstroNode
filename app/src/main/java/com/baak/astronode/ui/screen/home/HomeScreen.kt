@@ -1,9 +1,13 @@
 package com.baak.astronode.ui.screen.home
 
+import android.content.Intent
 import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
+import android.provider.Settings
+import android.view.WindowManager
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -22,9 +26,11 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -59,6 +65,18 @@ fun HomeScreen(
     var noteText by rememberSaveable { mutableStateOf("") }
 
     val context = LocalContext.current
+    val activity = context as? androidx.activity.ComponentActivity
+
+    DisposableEffect(measurementState.isLoading) {
+        if (measurementState.isLoading) {
+            activity?.window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        } else {
+            activity?.window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
+        onDispose {
+            activity?.window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
+    }
 
     // Başarılı ölçümde haptic feedback
     LaunchedEffect(measurementState.lastMeasurement) {
@@ -135,15 +153,47 @@ fun HomeScreen(
         }
 
         // Konum göstergesi
+        val hasLocationPermission = context.let { ctx ->
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    android.content.pm.PackageManager.PERMISSION_GRANTED ==
+                        ctx.checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION)
+                } else {
+                    @Suppress("DEPRECATION")
+                    android.content.pm.PackageManager.PERMISSION_GRANTED ==
+                        ctx.checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION)
+                }
+            }
         val locationText = locationData?.let {
             String.format("\uD83D\uDCCD %.4f, %.4f", it.lat, it.lng)
-        } ?: "\uD83D\uDCCD Konum alınıyor..."
+        } ?: if (hasLocationPermission) "\uD83D\uDCCD Konum alınıyor..." else "\uD83D\uDCCD Konum izni gerekli"
 
-        Text(
-            text = locationText,
-            style = MaterialTheme.typography.bodyMedium,
-            color = AstroTextSecondary
-        )
+        var showGpsWarning by remember { mutableStateOf(false) }
+        LaunchedEffect(hasLocationPermission, locationData) {
+            if (hasLocationPermission && locationData == null) {
+                kotlinx.coroutines.delay(3000)
+                showGpsWarning = locationData == null
+            } else {
+                showGpsWarning = false
+            }
+        }
+
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(
+                text = locationText,
+                style = MaterialTheme.typography.bodyMedium,
+                color = AstroTextSecondary
+            )
+            if (showGpsWarning) {
+                Text(
+                    text = "GPS kapalı, lütfen açın",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = AstroError,
+                    modifier = Modifier.clickable {
+                        context.startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS))
+                    }
+                )
+            }
+        }
 
         // Not alanı
         OutlinedTextField(
