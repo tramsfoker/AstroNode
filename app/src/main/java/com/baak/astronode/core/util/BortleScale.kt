@@ -16,7 +16,7 @@ object BortleScale {
         else -> 9
     }
 
-    fun bortleColor(bortleClass: Int): Color = when (bortleClass) {
+    fun toBortleColor(bortleClass: Int): Color = when (bortleClass) {
         1 -> Color(0xFF000033)
         2 -> Color(0xFF000066)
         3 -> Color(0xFF003399)
@@ -28,6 +28,9 @@ object BortleScale {
         9 -> Color(0xFFCC0000)
         else -> Color(0xFF333333)
     }
+
+    @Deprecated("Use toBortleColor instead", ReplaceWith("toBortleColor(bortleClass)"))
+    fun bortleColor(bortleClass: Int): Color = toBortleColor(bortleClass)
 
     fun bortleLabel(bortleClass: Int): String = when (bortleClass) {
         1 -> "Mükemmel karanlık"

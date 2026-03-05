@@ -8,6 +8,7 @@ import android.content.IntentFilter
 import android.hardware.usb.UsbDevice
 import android.hardware.usb.UsbManager
 import android.os.Build
+import android.util.Log
 import com.baak.astronode.core.constants.AppConstants
 import com.hoho.android.usbserial.driver.UsbSerialPort
 import com.hoho.android.usbserial.driver.UsbSerialProber
@@ -17,7 +18,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeout
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -61,7 +61,42 @@ class SqmUsbManager @Inject constructor(
         }
     }
 
+    private val knownDevices = listOf(
+        Pair(4292, 60000),   // CP2102
+        Pair(6790, 29987),   // CH340
+        Pair(1027, 24577),   // FTDI
+        Pair(1659, 8963)     // PL2303
+    )
+
+    private fun isKnownSqmDevice(device: UsbDevice): Boolean =
+        knownDevices.any { it.first == device.vendorId && it.second == device.productId }
+
+    fun scanConnectedDevices() {
+        val deviceList = usbManager.deviceList ?: return
+        if (deviceList.isEmpty()) return
+
+        for ((_, device) in deviceList) {
+            if (isKnownSqmDevice(device)) {
+                if (usbManager.hasPermission(device)) {
+                    tryConnect()
+                } else {
+                    _connectionState.value = UsbConnectionState.PERMISSION_PENDING
+                    val intent = Intent(ACTION_USB_PERMISSION).apply {
+                        setPackage(context.packageName)
+                    }
+                    val permIntent = PendingIntent.getBroadcast(
+                        context, 0, intent,
+                        PendingIntent.FLAG_IMMUTABLE
+                    )
+                    usbManager.requestPermission(device, permIntent)
+                }
+                return
+            }
+        }
+    }
+
     fun registerReceiver() {
+        scanConnectedDevices()
         val filter = IntentFilter().apply {
             addAction(UsbManager.ACTION_USB_DEVICE_ATTACHED)
             addAction(UsbManager.ACTION_USB_DEVICE_DETACHED)
@@ -126,6 +161,8 @@ class SqmUsbManager @Inject constructor(
                 UsbSerialPort.STOPBITS_1,
                 UsbSerialPort.PARITY_NONE
             )
+            port.setDTR(true)
+            port.setRTS(true)
 
             serialPort = port
             _connectionState.value = UsbConnectionState.CONNECTED
@@ -142,18 +179,68 @@ class SqmUsbManager @Inject constructor(
     }
 
     suspend fun readMeasurement(): SqmReading? = withContext(Dispatchers.IO) {
-        val port = serialPort ?: return@withContext null
         try {
-            withTimeout(AppConstants.SQM_READ_TIMEOUT_MS) {
-                port.write(SqmProtocol.buildReadCommand(), 1000)
-                val buffer = ByteArray(256)
-                val len = port.read(buffer, AppConstants.SQM_READ_TIMEOUT_MS.toInt())
-                if (len > 0) {
-                    val response = String(buffer, 0, len, Charsets.US_ASCII)
-                    SqmProtocol.parseResponse(response)
-                } else null
+            val port = serialPort
+            if (port == null) {
+                Log.e("SQM", "Port null - bağlantı yok")
+                return@withContext null
             }
+
+            // Önce buffer'ı temizle (eski veri kalmış olabilir)
+            val flushBuffer = ByteArray(1024)
+            try {
+                port.read(flushBuffer, 100)
+            } catch (_: Exception) {}
+
+            // Komutu gönder
+            val command = "rx\r".toByteArray(Charsets.US_ASCII)
+            Log.d("SQM", "Komut gönderiliyor: ${command.map { it.toInt() }}")
+            port.write(command, 1000)
+
+            // Yanıt oku — birden fazla parça gelebilir
+            val responseBuilder = StringBuilder()
+            val buffer = ByteArray(1024)
+            val startTime = System.currentTimeMillis()
+            val timeout = 5000L
+
+            while (System.currentTimeMillis() - startTime < timeout) {
+                try {
+                    val bytesRead = port.read(buffer, 1000)
+                    if (bytesRead > 0) {
+                        val chunk = String(buffer, 0, bytesRead, Charsets.US_ASCII)
+                        Log.d("SQM", "Okunan ($bytesRead byte): '$chunk'")
+                        responseBuilder.append(chunk)
+
+                        val fullResponse = responseBuilder.toString()
+                        if (fullResponse.contains("\r") || fullResponse.contains("\n")) {
+                            if (fullResponse.contains("m,")) {
+                                Log.d("SQM", "Tam yanıt: '$fullResponse'")
+                                break
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.w("SQM", "Okuma hatası: ${e.message}")
+                }
+            }
+
+            val rawResponse = responseBuilder.toString().trim()
+            Log.d("SQM", "Ham yanıt: '$rawResponse'")
+
+            if (rawResponse.isEmpty()) {
+                Log.e("SQM", "Boş yanıt - cihaz cevap vermedi")
+                return@withContext null
+            }
+
+            val reading = SqmProtocol.parseResponse(rawResponse)
+            if (reading == null) {
+                Log.e("SQM", "Parse başarısız. Raw: '$rawResponse'")
+            } else {
+                Log.d("SQM", "Başarılı! MPSAS: ${reading.mpsas}")
+            }
+            reading
         } catch (e: Exception) {
+            Log.e("SQM", "readMeasurement exception: ${e.message}", e)
             null
         }
     }

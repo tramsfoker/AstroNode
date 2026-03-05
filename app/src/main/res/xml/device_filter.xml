@@ -1,9 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- CP2102 (Silicon Labs) -->
-    <usb-device vendor-id="0x10C4" product-id="0xEA60" />
-    <!-- CH340 (Qinheng) -->
-    <usb-device vendor-id="0x1A86" product-id="0x7523" />
-    <!-- FTDI -->
-    <usb-device vendor-id="0x0403" product-id="0x6001" />
+    <usb-device vendor-id="4292" product-id="60000" />
+    <!-- CH340 -->
+    <usb-device vendor-id="6790" product-id="29987" />
+    <!-- FTDI FT232R -->
+    <usb-device vendor-id="1027" product-id="24577" />
+    <!-- Prolific PL2303 -->
+    <usb-device vendor-id="1659" product-id="8963" />
 </resources>
