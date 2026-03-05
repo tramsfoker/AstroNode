@@ -27,7 +27,7 @@ class ExportDataUseCase @Inject constructor(
         val fileName = "measurements_${System.currentTimeMillis()}.csv"
         val file = File(context.cacheDir, fileName)
 
-        val header = "timestamp,sqm_value,bortle_class,latitude,longitude,altitude,azimuth,pitch,roll,note"
+        val header = "timestamp,sqm_value,bortle_class,latitude,longitude,altitude,azimuth,pitch,roll,note,session_id,session_name"
         val lines = measurements.map { m ->
             val ts = dateFormat.format(Date(m.timestamp))
             val lat = m.latitude.toString()
@@ -37,7 +37,9 @@ class ExportDataUseCase @Inject constructor(
             val pitch = m.pitch?.toString() ?: ""
             val roll = m.roll?.toString() ?: ""
             val note = (m.note ?: "").replace(",", ";").replace("\n", " ")
-            "$ts,${m.sqmValue},${m.bortleClass},$lat,$lng,$alt,$az,$pitch,$roll,$note"
+            val sid = m.sessionId ?: ""
+            val sname = (m.sessionName ?: "").replace(",", ";").replace("\n", " ")
+            "$ts,${m.sqmValue},${m.bortleClass},$lat,$lng,$alt,$az,$pitch,$roll,$note,$sid,$sname"
         }
 
         file.writeText("$header\n${lines.joinToString("\n")}")

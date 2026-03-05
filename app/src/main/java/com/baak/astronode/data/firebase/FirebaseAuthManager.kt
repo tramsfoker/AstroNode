@@ -1,7 +1,9 @@
 package com.baak.astronode.data.firebase
 
+import android.util.Log
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withTimeout
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -15,8 +17,14 @@ class FirebaseAuthManager @Inject constructor() {
     suspend fun ensureAnonymousAuth(): String {
         auth.currentUser?.let { return it.uid }
 
-        val result = auth.signInAnonymously().await()
-        return result.user?.uid
-            ?: throw IllegalStateException("Anonim giriş başarısız: UID alınamadı")
+        return try {
+            withTimeout(5000L) {
+                val result = auth.signInAnonymously().await()
+                result.user?.uid ?: "offline_${System.currentTimeMillis()}"
+            }
+        } catch (e: Exception) {
+            Log.w("AUTH", "Auth timeout/hata, geçici ID: ${e.message}")
+            "offline_${System.currentTimeMillis()}"
+        }
     }
 }

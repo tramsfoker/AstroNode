@@ -20,9 +20,14 @@ object AppConstants {
     const val ORIENTATION_LOW_PASS_ALPHA = 0.15f
 
     // Firestore
+    const val FIRESTORE_CACHE_SIZE_BYTES = 50L * 1024 * 1024  // 50MB
     const val FIRESTORE_COLLECTION_MEASUREMENTS = "measurements"
+    const val FIRESTORE_COLLECTION_SESSIONS = "sessions"
     const val FIRESTORE_QUERY_LIMIT = 500L
 
     // Haptic feedback
     const val VIBRATION_DURATION_MS = 200L
+
+    // Migration
+    const val PREF_MIGRATION_GEOHASH_DONE = "migration_geohash_done"
 }

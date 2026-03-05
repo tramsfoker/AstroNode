@@ -1,5 +1,6 @@
 package com.baak.astronode.core.util
 
+import android.graphics.Color as AndroidColor
 import androidx.compose.ui.graphics.Color
 
 object BortleScale {
@@ -14,6 +15,20 @@ object BortleScale {
         mpsas >= 18.38 -> 7
         mpsas >= 17.80 -> 8
         else -> 9
+    }
+
+    /** Android Color (ColorInt) - ClusterManager, Canvas vb. için */
+    fun toBortleColorInt(bortleClass: Int): Int = when (bortleClass) {
+        1 -> AndroidColor.parseColor("#000033")
+        2 -> AndroidColor.parseColor("#000066")
+        3 -> AndroidColor.parseColor("#003399")
+        4 -> AndroidColor.parseColor("#006633")
+        5 -> AndroidColor.parseColor("#669900")
+        6 -> AndroidColor.parseColor("#CCCC00")
+        7 -> AndroidColor.parseColor("#CC6600")
+        8 -> AndroidColor.parseColor("#CC3300")
+        9 -> AndroidColor.parseColor("#CC0000")
+        else -> AndroidColor.parseColor("#333333")
     }
 
     fun toBortleColor(bortleClass: Int): Color = when (bortleClass) {

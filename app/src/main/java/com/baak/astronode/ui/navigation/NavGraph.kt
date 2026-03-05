@@ -27,6 +27,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.baak.astronode.ui.screen.history.HistoryScreen
 import com.baak.astronode.ui.screen.home.HomeScreen
+import com.baak.astronode.ui.screen.session.SessionScreen
 import com.baak.astronode.ui.screen.map.MapScreen
 import com.baak.astronode.ui.screen.splash.SplashScreen
 
@@ -36,6 +37,7 @@ object Routes {
     const val MAP = "map"
     const val MAP_FOCUS = "map/{lat}/{lng}"
     const val HISTORY = "history"
+    const val SESSION = "session"
 }
 
 @Composable
@@ -102,7 +104,16 @@ fun NavGraph() {
                 )
             }
             composable(Routes.HOME) {
-                HomeScreen()
+                HomeScreen(
+                    onNavigateToSession = {
+                        navController.navigate(Routes.SESSION)
+                    }
+                )
+            }
+            composable(Routes.SESSION) {
+                SessionScreen(
+                    onNavigateBack = { navController.popBackStack() }
+                )
             }
             composable(Routes.MAP) {
                 MapScreen()

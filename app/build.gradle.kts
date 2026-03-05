@@ -73,6 +73,10 @@ dependencies {
     implementation(libs.play.services.maps)
     implementation(libs.maps.compose)
 
+    // GeoHash & Map Clustering
+    implementation("com.firebase:geofire-android-common:3.2.0")
+    implementation("com.google.maps.android:android-maps-utils:3.8.0")
+
     // USB Serial
     implementation(libs.usb.serial)
 

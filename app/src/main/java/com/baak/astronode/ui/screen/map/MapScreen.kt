@@ -20,6 +20,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -32,15 +33,16 @@ import com.baak.astronode.core.theme.PrimaryAccent
 import com.baak.astronode.core.theme.Surface
 import com.baak.astronode.core.theme.TextPrimary
 import com.baak.astronode.core.theme.TextSecondary
-import com.baak.astronode.core.util.BortleScale
 import com.baak.astronode.R
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
-import com.google.maps.android.compose.Circle
+import com.google.maps.android.clustering.ClusterManager
 import com.google.maps.android.compose.GoogleMap
+import com.google.maps.android.compose.MapEffect
 import com.google.maps.android.compose.MapProperties
 import com.google.maps.android.compose.MapUiSettings
+import com.google.maps.android.compose.MapsComposeExperimentalApi
 import com.google.maps.android.compose.rememberCameraPositionState
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -49,7 +51,6 @@ import java.util.Locale
 private const val BURSA_LAT = 40.19
 private const val BURSA_LNG = 29.06
 private const val DEFAULT_ZOOM = 10f
-private const val CIRCLE_RADIUS_METERS = 300.0
 
 private fun formatInfoWindow(m: SkyMeasurement): String {
     val dateFormat = SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.getDefault())
@@ -57,6 +58,7 @@ private fun formatInfoWindow(m: SkyMeasurement): String {
     return if (!m.note.isNullOrBlank()) "$base\n${m.note}" else base
 }
 
+@OptIn(MapsComposeExperimentalApi::class)
 @Composable
 fun MapScreen(
     initialFocusLat: Double? = null,
@@ -66,6 +68,7 @@ fun MapScreen(
     val context = LocalContext.current
     val measurements by viewModel.measurements.collectAsStateWithLifecycle()
     val mapDataState by viewModel.mapDataState.collectAsStateWithLifecycle()
+    val isOnline by viewModel.isOnline.collectAsStateWithLifecycle()
     val userLocation by viewModel.userLocation.collectAsStateWithLifecycle()
     var selectedMeasurement by remember { mutableStateOf<SkyMeasurement?>(null) }
 
@@ -88,21 +91,41 @@ fun MapScreen(
         }
     }
 
+    LaunchedEffect(cameraPositionState) {
+        snapshotFlow { cameraPositionState.position }
+            .collect { position ->
+                viewModel.onCameraPositionChanged(
+                    position.target.latitude,
+                    position.target.longitude,
+                    position.zoom
+                )
+            }
+    }
+
     val mapProperties = remember {
         MapProperties(
             mapStyleOptions = com.google.android.gms.maps.model.MapStyleOptions.loadRawResourceStyle(
                 context,
                 R.raw.map_style
-            )
+            ),
+            isMyLocationEnabled = false  // Varsayılan mavi noktayı KAPAT (cluster ile çakışmasın)
         )
     }
 
     val mapUiSettings = remember {
         MapUiSettings(
             zoomControlsEnabled = false,
-            myLocationButtonEnabled = false
+            mapToolbarEnabled = false,  // Beyaz toolbar panelini kapatır
+            myLocationButtonEnabled = false,
+            compassEnabled = true,
+            rotationGesturesEnabled = true,
+            scrollGesturesEnabled = true,
+            tiltGesturesEnabled = true,
+            zoomGesturesEnabled = true
         )
     }
+
+    var clusterManager by remember { mutableStateOf<ClusterManager<MeasurementClusterItem>?>(null) }
 
     Box(
         modifier = Modifier
@@ -115,16 +138,48 @@ fun MapScreen(
             properties = mapProperties,
             uiSettings = mapUiSettings
         ) {
-            measurements.forEach { measurement ->
-                Circle(
-                    center = LatLng(measurement.latitude, measurement.longitude),
-                    radius = CIRCLE_RADIUS_METERS,
-                    fillColor = BortleScale.toBortleColor(measurement.bortleClass),
-                    strokeColor = BortleScale.toBortleColor(measurement.bortleClass),
-                    strokeWidth = 2f,
-                    clickable = true,
-                    onClick = { selectedMeasurement = measurement }
-                )
+            MapEffect(measurements) { googleMap ->
+                val manager = clusterManager
+                if (manager == null) {
+                    val newManager = ClusterManager<MeasurementClusterItem>(context, googleMap).apply {
+                        setRenderer(BortleClusterRenderer(context, googleMap, this))
+                        setOnClusterItemClickListener { item ->
+                            selectedMeasurement = item.measurement
+                            true
+                        }
+                    }
+                    googleMap.setOnCameraIdleListener(newManager)
+                    googleMap.setOnMarkerClickListener(newManager)
+                    clusterManager = newManager
+                    newManager.clearItems()
+                    newManager.addItems(measurements.map { MeasurementClusterItem(it) })
+                    newManager.cluster()
+                } else {
+                    manager.clearItems()
+                    manager.addItems(measurements.map { MeasurementClusterItem(it) })
+                    manager.cluster()
+                }
+            }
+        }
+
+        // Offline harita uyarısı — tile'lar yüklenmez, ölçüm noktaları cache'ten gösterilir
+        if (!isOnline) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(16.dp)
+            ) {
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = CardBackground),
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                ) {
+                    Text(
+                        text = "Harita çevrimdışı kullanılamıyor",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = TextSecondary,
+                        modifier = Modifier.padding(12.dp)
+                    )
+                }
             }
         }
 

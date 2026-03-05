@@ -15,5 +15,8 @@ data class SkyMeasurement(
     val orientationEnabled: Boolean,
     val timestamp: Long = System.currentTimeMillis(),
     val deviceId: String,
-    val note: String? = null
+    val note: String? = null,
+    val sessionId: String? = null,
+    val sessionName: String? = null,
+    val geohash: String? = null
 )

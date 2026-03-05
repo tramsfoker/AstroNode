@@ -34,6 +34,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -44,23 +45,29 @@ import com.baak.astronode.ui.component.ConnectionBadge
 import com.baak.astronode.ui.component.MeasureButton
 import com.baak.astronode.ui.component.OrientationDisplay
 import com.baak.astronode.ui.component.SqmGauge
+import com.baak.astronode.ui.screen.home.ConnectionBannerState
 import com.baak.astronode.ui.theme.AstroCardBackground
 import com.baak.astronode.ui.theme.AstroDisabled
 import com.baak.astronode.ui.theme.AstroError
 import com.baak.astronode.ui.theme.AstroPrimary
 import com.baak.astronode.ui.theme.AstroSurface
+import com.baak.astronode.ui.theme.AstroSuccess
 import com.baak.astronode.ui.theme.AstroTextPrimary
 import com.baak.astronode.ui.theme.AstroTextSecondary
+import com.baak.astronode.ui.theme.AstroWarning
 
 @Composable
 fun HomeScreen(
+    onNavigateToSession: () -> Unit,
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val measurementState by viewModel.measurementState.collectAsStateWithLifecycle()
+    val connectionBanner by viewModel.connectionBannerState.collectAsStateWithLifecycle()
     val usbState by viewModel.usbConnectionState.collectAsStateWithLifecycle()
     val locationData by viewModel.locationState.collectAsStateWithLifecycle()
     val orientationData by viewModel.orientationState.collectAsStateWithLifecycle()
     val orientationEnabled by viewModel.orientationEnabled.collectAsStateWithLifecycle()
+    val selectedSession by viewModel.selectedSession.collectAsStateWithLifecycle()
 
     var noteText by rememberSaveable { mutableStateOf("") }
 
@@ -107,6 +114,62 @@ fun HomeScreen(
             style = MaterialTheme.typography.titleMedium,
             color = AstroTextPrimary
         )
+
+        // Bağlantı durumu banner'ı (offline / senkron)
+        when (val state = connectionBanner) {
+            is ConnectionBannerState.Online -> { /* Gizle */ }
+            is ConnectionBannerState.Offline -> {
+                val text = if (state.pendingCount > 0) {
+                    "📡 Çevrimdışı — ${state.pendingCount} ölçüm senkron bekliyor"
+                } else {
+                    "📡 Çevrimdışı mod — ölçümler kaydediliyor, internet gelince otomatik yüklenecek"
+                }
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color(0xFF332200), RoundedCornerShape(8.dp))
+                        .padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = text,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = AstroWarning
+                    )
+                }
+            }
+            is ConnectionBannerState.Synced -> {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(AstroSuccess.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
+                        .padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "✓ Senkronize edildi",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = AstroSuccess
+                    )
+                }
+            }
+        }
+
+        // Etkinlik banner
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onNavigateToSession)
+                .background(AstroCardBackground, RoundedCornerShape(8.dp))
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "\uD83D\uDCCB ${selectedSession?.name ?: "Serbest Ölçüm"}",
+                style = MaterialTheme.typography.bodyMedium,
+                color = AstroTextPrimary
+            )
+        }
 
         // USB bağlantı rozeti
         ConnectionBadge(
