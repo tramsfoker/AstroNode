@@ -4,8 +4,8 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import com.baak.astronode.core.theme.BaakDarkTheme
-import com.baak.astronode.ui.navigation.NavGraph
+import com.baak.astronode.ui.screen.home.HomeScreen
+import com.baak.astronode.ui.theme.AstroNodeTheme
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
@@ -14,8 +14,8 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            BaakDarkTheme {
-                NavGraph()
+            AstroNodeTheme {
+                HomeScreen()
             }
         }
     }

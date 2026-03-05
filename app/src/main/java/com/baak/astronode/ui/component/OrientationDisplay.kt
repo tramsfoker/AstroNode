@@ -1,40 +1,37 @@
 package com.baak.astronode.ui.component
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.baak.astronode.data.sensor.OrientationData
+import com.baak.astronode.ui.theme.AstroTextSecondary
 
 @Composable
 fun OrientationDisplay(
-    azimuth: Float?,
-    pitch: Float?,
-    roll: Float?,
+    orientation: OrientationData?,
     modifier: Modifier = Modifier
 ) {
-    fun format(value: Float?) = value?.let { "%.0f°".format(it) } ?: "—"
-
-    Row(modifier = modifier) {
-        Text(
-            text = "Az: ${format(azimuth)}",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurface
-        )
-        Spacer(modifier = Modifier.width(16.dp))
-        Text(
-            text = "Pitch: ${format(pitch)}",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurface
-        )
-        Spacer(modifier = Modifier.width(16.dp))
-        Text(
-            text = "R: ${format(roll)}",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurface
-        )
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceEvenly
+    ) {
+        OrientationValue("Az", orientation?.azimuth, "°")
+        OrientationValue("Pitch", orientation?.pitch, "°")
+        OrientationValue("Roll", orientation?.roll, "°")
     }
+}
+
+@Composable
+private fun OrientationValue(label: String, value: Float?, unit: String) {
+    val display = value?.let { String.format("%.0f%s", it, unit) } ?: "—"
+    Text(
+        text = "$label: $display",
+        style = MaterialTheme.typography.bodyMedium,
+        color = AstroTextSecondary
+    )
 }

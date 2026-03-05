@@ -5,6 +5,7 @@ import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
+import com.baak.astronode.core.constants.AppConstants
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -21,139 +22,73 @@ data class OrientationData(
 @Singleton
 class OrientationProvider @Inject constructor(
     @ApplicationContext private val context: Context
-) {
-    private val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
+) : SensorEventListener {
 
-    private val rotationVectorSensor = sensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR)
-    private val accelerometerSensor = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
-    private val magneticSensor = sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD)
+    private val sensorManager: SensorManager =
+        context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
 
-    val isSensorAvailable: Boolean = run {
-        when {
-            rotationVectorSensor != null -> true
-            accelerometerSensor != null && magneticSensor != null -> true
-            else -> false
-        }
-    }
+    private val rotationSensor: Sensor? =
+        sensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR)
 
-    private val _orientationState = MutableStateFlow<OrientationData?>(null)
-    val orientationState: StateFlow<OrientationData?> = _orientationState.asStateFlow()
+    private val _orientation = MutableStateFlow<OrientationData?>(null)
+    val orientation: StateFlow<OrientationData?> = _orientation.asStateFlow()
 
-    private val lowPassAlpha = 0.15f
-    private var filteredAzimuth = 0f
-    private var filteredPitch = 0f
-    private var filteredRoll = 0f
-    private var isFirstSample = true
+    val isSensorAvailable: Boolean get() = rotationSensor != null
 
     private val rotationMatrix = FloatArray(9)
     private val orientationAngles = FloatArray(3)
+    private var filteredAzimuth = 0f
+    private var filteredPitch = 0f
+    private var filteredRoll = 0f
+    private var initialized = false
 
-    private var lastGravity: FloatArray? = null
-    private var lastGeomagnetic: FloatArray? = null
-
-    private val rotationVectorListener = object : SensorEventListener {
-        override fun onSensorChanged(event: SensorEvent) {
-            if (event.sensor.type != Sensor.TYPE_ROTATION_VECTOR) return
-
-            SensorManager.getRotationMatrixFromVector(rotationMatrix, event.values)
-            SensorManager.getOrientation(rotationMatrix, orientationAngles)
-
-            updateOrientationFromAngles()
+    fun startListening() {
+        rotationSensor?.let {
+            sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_UI)
         }
-
-        override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
     }
 
-    private val accelMagneticListener = object : SensorEventListener {
-        override fun onSensorChanged(event: SensorEvent) {
-            when (event.sensor.type) {
-                Sensor.TYPE_ACCELEROMETER -> lastGravity = event.values.clone()
-                Sensor.TYPE_MAGNETIC_FIELD -> lastGeomagnetic = event.values.clone()
-            }
-            val gravity = lastGravity ?: return
-            val geomagnetic = lastGeomagnetic ?: return
-
-            if (!SensorManager.getRotationMatrix(rotationMatrix, null, gravity, geomagnetic)) return
-
-            SensorManager.getOrientation(rotationMatrix, orientationAngles)
-            updateOrientationFromAngles()
-        }
-
-        override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
+    fun stopListening() {
+        sensorManager.unregisterListener(this)
+        _orientation.value = null
+        initialized = false
     }
 
-    private fun updateOrientationFromAngles() {
-        val azimuthRad = orientationAngles[0]
-        val pitchRad = orientationAngles[1]
-        val rollRad = orientationAngles[2]
+    override fun onSensorChanged(event: SensorEvent) {
+        if (event.sensor.type != Sensor.TYPE_ROTATION_VECTOR) return
 
-        val azimuthDeg = Math.toDegrees(azimuthRad.toDouble()).toFloat()
-        val pitchDeg = Math.toDegrees(pitchRad.toDouble()).toFloat()
-        val rollDeg = Math.toDegrees(rollRad.toDouble()).toFloat()
+        SensorManager.getRotationMatrixFromVector(rotationMatrix, event.values)
+        SensorManager.getOrientation(rotationMatrix, orientationAngles)
 
-        val azimuthNorm = (azimuthDeg + 360) % 360
-        val pitchNorm = pitchDeg.coerceIn(-90f, 90f)
-        val rollNorm = rollDeg.coerceIn(-180f, 180f)
+        val azDeg = Math.toDegrees(orientationAngles[0].toDouble()).toFloat().let {
+            if (it < 0) it + 360f else it
+        }
+        val pitchDeg = Math.toDegrees(orientationAngles[1].toDouble()).toFloat()
+        val rollDeg = Math.toDegrees(orientationAngles[2].toDouble()).toFloat()
 
-        if (isFirstSample) {
-            filteredAzimuth = azimuthNorm
-            filteredPitch = pitchNorm
-            filteredRoll = rollNorm
-            isFirstSample = false
+        val alpha = AppConstants.ORIENTATION_LOW_PASS_ALPHA
+        if (!initialized) {
+            filteredAzimuth = azDeg
+            filteredPitch = pitchDeg
+            filteredRoll = rollDeg
+            initialized = true
         } else {
-            filteredAzimuth = lowPass(filteredAzimuth, azimuthNorm)
-            filteredPitch = lowPass(filteredPitch, pitchNorm)
-            filteredRoll = lowPass(filteredRoll, rollNorm)
+            filteredAzimuth = lowPass(filteredAzimuth, azDeg, alpha)
+            filteredPitch = lowPass(filteredPitch, pitchDeg, alpha)
+            filteredRoll = lowPass(filteredRoll, rollDeg, alpha)
         }
 
-        _orientationState.value = OrientationData(
+        _orientation.value = OrientationData(
             azimuth = filteredAzimuth,
             pitch = filteredPitch,
             roll = filteredRoll
         )
     }
 
-    private fun lowPass(prev: Float, current: Float): Float {
-        return prev + lowPassAlpha * (current - prev)
-    }
+    override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
 
-    fun startListening() {
-        if (!isSensorAvailable) {
-            _orientationState.value = null
-            return
-        }
-        isFirstSample = true
-        lastGravity = null
-        lastGeomagnetic = null
+    private fun lowPass(previous: Float, current: Float, alpha: Float): Float =
+        previous + alpha * (current - previous)
 
-        when {
-            rotationVectorSensor != null -> {
-                sensorManager.registerListener(
-                    rotationVectorListener,
-                    rotationVectorSensor,
-                    SensorManager.SENSOR_DELAY_UI
-                )
-            }
-            accelerometerSensor != null && magneticSensor != null -> {
-                sensorManager.registerListener(
-                    accelMagneticListener,
-                    accelerometerSensor,
-                    SensorManager.SENSOR_DELAY_UI
-                )
-                sensorManager.registerListener(
-                    accelMagneticListener,
-                    magneticSensor,
-                    SensorManager.SENSOR_DELAY_UI
-                )
-            }
-        }
-    }
-
-    fun stopListening() {
-        sensorManager.unregisterListener(rotationVectorListener)
-        sensorManager.unregisterListener(accelMagneticListener)
-        _orientationState.value = null
-    }
-
-    fun hasSensor(): Boolean = isSensorAvailable
+    fun getCurrentOrientation(): OrientationData? = _orientation.value
 }

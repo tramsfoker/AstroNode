@@ -22,4 +22,3 @@ dependencyResolutionManagement {
 
 rootProject.name = "AstroNode"
 include(":app")
- 

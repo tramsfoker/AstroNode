@@ -1,13 +1,9 @@
 package com.baak.astronode.core.util
 
-/**
- * MPSAS → Bortle dönüşüm fonksiyonları — MASTERPLAN Bölüm 3.3
- */
+import androidx.compose.ui.graphics.Color
+
 object BortleScale {
 
-    /**
-     * MPSAS değerinden Bortle sınıfı (1-9) hesaplar.
-     */
     fun toBortleClass(mpsas: Double): Int = when {
         mpsas >= 21.99 -> 1
         mpsas >= 21.89 -> 2
@@ -20,35 +16,29 @@ object BortleScale {
         else -> 9
     }
 
-    /**
-     * Bortle sınıfına göre hex renk kodu döndürür (0xAARRGGBB formatında Long).
-     */
-    fun toBortleColor(bortleClass: Int): Long = when (bortleClass.coerceIn(1, 9)) {
-        1 -> 0xFF000033L
-        2 -> 0xFF000066L
-        3 -> 0xFF003399L
-        4 -> 0xFF006633L
-        5 -> 0xFF669900L
-        6 -> 0xFFCCCC00L
-        7 -> 0xFFCC6600L
-        8 -> 0xFFCC3300L
-        9 -> 0xFFCC0000L
-        else -> 0xFF333333L
+    fun bortleColor(bortleClass: Int): Color = when (bortleClass) {
+        1 -> Color(0xFF000033)
+        2 -> Color(0xFF000066)
+        3 -> Color(0xFF003399)
+        4 -> Color(0xFF006633)
+        5 -> Color(0xFF669900)
+        6 -> Color(0xFFCCCC00)
+        7 -> Color(0xFFCC6600)
+        8 -> Color(0xFFCC3300)
+        9 -> Color(0xFFCC0000)
+        else -> Color(0xFF333333)
     }
 
-    /**
-     * Bortle sınıfına göre Türkçe açıklama döndürür.
-     */
-    fun toBortleDescription(bortleClass: Int): String = when (bortleClass.coerceIn(1, 9)) {
-        1 -> "Mükemmel karanlık alan"
-        2 -> "Tipik karanlık alan"
+    fun bortleLabel(bortleClass: Int): String = when (bortleClass) {
+        1 -> "Mükemmel karanlık"
+        2 -> "Tipik karanlık"
         3 -> "Kırsal gökyüzü"
-        4 -> "Kırsal/banliyö geçişi"
+        4 -> "Kırsal/banliyö"
         5 -> "Banliyö"
         6 -> "Parlak banliyö"
-        7 -> "Banliyö/şehir geçişi"
+        7 -> "Banliyö/şehir"
         8 -> "Şehir gökyüzü"
         9 -> "Şehir merkezi"
-        else -> "Bilinmeyen"
+        else -> "Bilinmiyor"
     }
 }

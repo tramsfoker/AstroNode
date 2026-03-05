@@ -1,5 +1,6 @@
 package com.baak.astronode.data.usb
 
+import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -17,7 +18,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
-import java.io.IOException
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -33,7 +33,7 @@ class SqmUsbManager @Inject constructor(
     @ApplicationContext private val context: Context
 ) {
     companion object {
-        const val ACTION_USB_PERMISSION = "com.baak.astronode.USB_PERMISSION"
+        private const val ACTION_USB_PERMISSION = "com.baak.astronode.USB_PERMISSION"
     }
 
     private val usbManager: UsbManager =
@@ -42,153 +42,119 @@ class SqmUsbManager @Inject constructor(
     private val _connectionState = MutableStateFlow(UsbConnectionState.DISCONNECTED)
     val connectionState: StateFlow<UsbConnectionState> = _connectionState.asStateFlow()
 
-    private var usbConnection: android.hardware.usb.UsbDeviceConnection? = null
     private var serialPort: UsbSerialPort? = null
-    private var pendingDevice: UsbDevice? = null
+    private var driverName: String? = null
 
-    private val deviceAttachedReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context?, intent: Intent?) {
-            when (intent?.action) {
-                UsbManager.ACTION_USB_DEVICE_ATTACHED -> {
-                    val device = intent.getParcelableExtra<UsbDevice>(UsbManager.EXTRA_DEVICE)
-                    if (device != null && serialPort == null) {
-                        pendingDevice = device
-                        if (_connectionState.value == UsbConnectionState.DISCONNECTED) {
-                            tryConnect(device)
-                        }
-                    }
-                }
-                UsbManager.ACTION_USB_DEVICE_DETACHED -> {
-                    val device = intent.getParcelableExtra<UsbDevice>(UsbManager.EXTRA_DEVICE)
-                    if (device != null) {
-                        pendingDevice = null
-                        disconnect()
-                    }
-                }
+    val connectedDriverName: String? get() = driverName
+
+    private val usbReceiver = object : BroadcastReceiver() {
+        override fun onReceive(ctx: Context, intent: Intent) {
+            when (intent.action) {
+                UsbManager.ACTION_USB_DEVICE_ATTACHED -> tryConnect()
+                UsbManager.ACTION_USB_DEVICE_DETACHED -> disconnect()
                 ACTION_USB_PERMISSION -> {
-                    val device = intent.getParcelableExtra<UsbDevice>(UsbManager.EXTRA_DEVICE)
                     val granted = intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false)
-                    if (device != null && granted) {
-                        openPort(device)
-                    } else if (device != null && !granted) {
-                        _connectionState.value = UsbConnectionState.ERROR
-                        pendingDevice = null
-                    }
+                    if (granted) openConnection()
+                    else _connectionState.value = UsbConnectionState.ERROR
                 }
             }
         }
     }
 
-    init {
+    fun registerReceiver() {
         val filter = IntentFilter().apply {
             addAction(UsbManager.ACTION_USB_DEVICE_ATTACHED)
             addAction(UsbManager.ACTION_USB_DEVICE_DETACHED)
             addAction(ACTION_USB_PERMISSION)
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            context.registerReceiver(deviceAttachedReceiver, filter, Context.RECEIVER_EXPORTED)
+            context.registerReceiver(usbReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
         } else {
-            context.registerReceiver(deviceAttachedReceiver, filter)
-        }
-
-        // Başlangıçta bağlı cihaz var mı kontrol et
-        usbManager.deviceList.values.firstOrNull()?.let { device ->
-            pendingDevice = device
-            tryConnect(device)
+            context.registerReceiver(usbReceiver, filter)
         }
     }
 
-    fun connect() {
-        val device = pendingDevice ?: usbManager.deviceList.values.firstOrNull()
-        if (device != null) {
-            pendingDevice = device
-            tryConnect(device)
-        } else {
+    fun unregisterReceiver() {
+        runCatching { context.unregisterReceiver(usbReceiver) }
+    }
+
+    fun tryConnect() {
+        val availableDrivers = UsbSerialProber.getDefaultProber().findAllDrivers(usbManager)
+        if (availableDrivers.isEmpty()) {
             _connectionState.value = UsbConnectionState.DISCONNECTED
+            return
+        }
+
+        val driver = availableDrivers[0]
+        val device: UsbDevice = driver.device
+        driverName = driver.javaClass.simpleName
+
+        if (usbManager.hasPermission(device)) {
+            openConnection()
+        } else {
+            _connectionState.value = UsbConnectionState.PERMISSION_PENDING
+            val intent = Intent(ACTION_USB_PERMISSION).apply {
+                setPackage(context.packageName)
+            }
+            val permIntent = PendingIntent.getBroadcast(
+                context, 0, intent,
+                PendingIntent.FLAG_IMMUTABLE
+            )
+            usbManager.requestPermission(device, permIntent)
+        }
+    }
+
+    private fun openConnection() {
+        try {
+            val drivers = UsbSerialProber.getDefaultProber().findAllDrivers(usbManager)
+            if (drivers.isEmpty()) {
+                _connectionState.value = UsbConnectionState.ERROR
+                return
+            }
+            val driver = drivers[0]
+            val connection = usbManager.openDevice(driver.device)
+            if (connection == null) {
+                _connectionState.value = UsbConnectionState.ERROR
+                return
+            }
+
+            val port = driver.ports[0]
+            port.open(connection)
+            port.setParameters(
+                AppConstants.SQM_BAUD_RATE,
+                AppConstants.SQM_DATA_BITS,
+                UsbSerialPort.STOPBITS_1,
+                UsbSerialPort.PARITY_NONE
+            )
+
+            serialPort = port
+            _connectionState.value = UsbConnectionState.CONNECTED
+        } catch (e: Exception) {
+            _connectionState.value = UsbConnectionState.ERROR
         }
     }
 
     fun disconnect() {
-        try {
-            serialPort?.close()
-        } catch (_: IOException) { }
+        runCatching { serialPort?.close() }
         serialPort = null
-        usbConnection?.close()
-        usbConnection = null
-        pendingDevice = null
+        driverName = null
         _connectionState.value = UsbConnectionState.DISCONNECTED
     }
 
-    private fun tryConnect(device: UsbDevice) {
-        if (!usbManager.hasPermission(device)) {
-            _connectionState.value = UsbConnectionState.PERMISSION_PENDING
-            val pi = android.app.PendingIntent.getBroadcast(
-                context, 0,
-                Intent(ACTION_USB_PERMISSION),
-                android.app.PendingIntent.FLAG_MUTABLE or android.app.PendingIntent.FLAG_UPDATE_CURRENT
-            )
-            usbManager.requestPermission(device, pi)
-        } else {
-            openPort(device)
-        }
-    }
-
-    private fun openPort(device: UsbDevice) {
-        val drivers = UsbSerialProber.getDefaultProber().findAllDrivers(usbManager)
-        val driver = drivers.find { it.device == device } ?: run {
-            _connectionState.value = UsbConnectionState.ERROR
-            return
-        }
-        val connection = usbManager.openDevice(driver.device) ?: run {
-            _connectionState.value = UsbConnectionState.ERROR
-            return
-        }
-        val port = driver.ports.getOrNull(0) ?: run {
-            connection.close()
-            _connectionState.value = UsbConnectionState.ERROR
-            return
-        }
-        try {
-            port.open(connection)
-            port.setParameters(
-                AppConstants.SQM_BAUD_RATE,
-                UsbSerialPort.DATABITS_8,
-                UsbSerialPort.STOPBITS_1,
-                UsbSerialPort.PARITY_NONE
-            )
-            usbConnection = connection
-            serialPort = port
-            _connectionState.value = UsbConnectionState.CONNECTED
-        } catch (e: IOException) {
-            try { port.close() } catch (_: IOException) { }
-            connection.close()
-            _connectionState.value = UsbConnectionState.ERROR
-        }
-    }
-
-    /**
-     * SQM ölçümü yapar: komut gönder → 3 saniye timeout ile yanıt bekle → parse et.
-     * Dispatchers.IO üzerinde çalışır.
-     */
     suspend fun readMeasurement(): SqmReading? = withContext(Dispatchers.IO) {
         val port = serialPort ?: return@withContext null
-        if (!port.isOpen) return@withContext null
-
         try {
-            val command = SqmProtocol.buildReadCommand()
-            port.write(command, 1000)
-
-            val buffer = ByteArray(256)
-            val bytesRead = withTimeout(AppConstants.SQM_TIMEOUT_MS) {
-                port.read(buffer, AppConstants.SQM_TIMEOUT_MS.toInt())
+            withTimeout(AppConstants.SQM_READ_TIMEOUT_MS) {
+                port.write(SqmProtocol.buildReadCommand(), 1000)
+                val buffer = ByteArray(256)
+                val len = port.read(buffer, AppConstants.SQM_READ_TIMEOUT_MS.toInt())
+                if (len > 0) {
+                    val response = String(buffer, 0, len, Charsets.US_ASCII)
+                    SqmProtocol.parseResponse(response)
+                } else null
             }
-            if (bytesRead <= 0) return@withContext null
-
-            val raw = String(buffer, 0, bytesRead, Charsets.US_ASCII)
-            SqmProtocol.parseResponse(raw)
-        } catch (_: Exception) {
+        } catch (e: Exception) {
             null
         }
     }
-
 }

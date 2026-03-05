@@ -1,7 +1,9 @@
 package com.baak.astronode.data.sensor
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.os.Looper
+import com.baak.astronode.core.constants.AppConstants
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationCallback
 import com.google.android.gms.location.LocationRequest
@@ -18,8 +20,8 @@ import javax.inject.Singleton
 data class LocationData(
     val lat: Double,
     val lng: Double,
-    val altitude: Double,
-    val accuracy: Float
+    val altitude: Double?,
+    val accuracy: Float?
 )
 
 @Singleton
@@ -29,33 +31,37 @@ class LocationProvider @Inject constructor(
     private val fusedClient: FusedLocationProviderClient =
         LocationServices.getFusedLocationProviderClient(context)
 
-    private val _locationState = MutableStateFlow<LocationData?>(null)
-    val locationState: StateFlow<LocationData?> = _locationState.asStateFlow()
-
-    private val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 5000)
-        .setMinUpdateIntervalMillis(5000)
-        .setMinUpdateDistanceMeters(10f)
-        .setWaitForAccurateLocation(false)
-        .build()
+    private val _location = MutableStateFlow<LocationData?>(null)
+    val location: StateFlow<LocationData?> = _location.asStateFlow()
 
     private val locationCallback = object : LocationCallback() {
         override fun onLocationResult(result: LocationResult) {
-            result.lastLocation?.let { location ->
-                _locationState.value = LocationData(
-                    lat = location.latitude,
-                    lng = location.longitude,
-                    altitude = location.altitude,
-                    accuracy = location.accuracy
+            result.lastLocation?.let { loc ->
+                _location.value = LocationData(
+                    lat = loc.latitude,
+                    lng = loc.longitude,
+                    altitude = if (loc.hasAltitude()) loc.altitude else null,
+                    accuracy = if (loc.hasAccuracy()) loc.accuracy else null
                 )
             }
         }
     }
 
+    @SuppressLint("MissingPermission")
     fun startUpdates() {
-        fusedClient.requestLocationUpdates(locationRequest, locationCallback, Looper.getMainLooper())
+        val request = LocationRequest.Builder(
+            Priority.PRIORITY_HIGH_ACCURACY,
+            AppConstants.LOCATION_INTERVAL_MS
+        )
+            .setMinUpdateDistanceMeters(AppConstants.LOCATION_MIN_DISTANCE_M)
+            .build()
+
+        fusedClient.requestLocationUpdates(request, locationCallback, Looper.getMainLooper())
     }
 
     fun stopUpdates() {
         fusedClient.removeLocationUpdates(locationCallback)
     }
+
+    fun getCurrentLocation(): LocationData? = _location.value
 }
