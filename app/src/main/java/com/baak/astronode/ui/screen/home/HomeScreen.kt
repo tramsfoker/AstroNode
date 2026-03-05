@@ -6,6 +6,7 @@ import android.os.VibrationEffect
 import android.os.Vibrator
 import android.provider.Settings
 import android.view.WindowManager
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -16,9 +17,14 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -34,7 +40,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -46,19 +52,16 @@ import com.baak.astronode.ui.component.MeasureButton
 import com.baak.astronode.ui.component.OrientationDisplay
 import com.baak.astronode.ui.component.SqmGauge
 import com.baak.astronode.ui.screen.home.ConnectionBannerState
-import com.baak.astronode.ui.theme.AstroCardBackground
-import com.baak.astronode.ui.theme.AstroDisabled
-import com.baak.astronode.ui.theme.AstroError
-import com.baak.astronode.ui.theme.AstroPrimary
-import com.baak.astronode.ui.theme.AstroSurface
 import com.baak.astronode.ui.theme.AstroSuccess
-import com.baak.astronode.ui.theme.AstroTextPrimary
-import com.baak.astronode.ui.theme.AstroTextSecondary
 import com.baak.astronode.ui.theme.AstroWarning
+import com.baak.astronode.ui.theme.LightSuccess
+import com.baak.astronode.ui.theme.LightWarning
+import com.baak.astronode.R
 
 @Composable
 fun HomeScreen(
     onNavigateToSession: () -> Unit,
+    onNavigateToSettings: () -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val measurementState by viewModel.measurementState.collectAsStateWithLifecycle()
@@ -99,21 +102,52 @@ fun HomeScreen(
         }
     }
 
+    val colorScheme = MaterialTheme.colorScheme
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(AstroSurface)
+            .background(colorScheme.surface)
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 20.dp, vertical = 16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // Üst bar
-        Text(
-            text = "BAAK BİLİM KULÜBÜ",
-            style = MaterialTheme.typography.titleMedium,
-            color = AstroTextPrimary
-        )
+        // Üst bar: logo + AstroNode + ayarlar
+        val isDarkTheme = colorScheme.background.luminance() < 0.2f
+        val successColor = if (isDarkTheme) AstroSuccess else LightSuccess
+        val warningColor = if (isDarkTheme) AstroWarning else LightWarning
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.weight(1f)
+            ) {
+                Image(
+                    painter = androidx.compose.ui.res.painterResource(
+                        if (isDarkTheme) R.drawable.logo_topbar_small_red
+                        else R.drawable.logo_topbar_small_black
+                    ),
+                    contentDescription = null,
+                    modifier = Modifier.size(32.dp)
+                )
+                Spacer(modifier = Modifier.size(8.dp))
+                Text(
+                    text = "AstroNode",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = colorScheme.onSurface
+                )
+            }
+            IconButton(onClick = onNavigateToSettings) {
+                Icon(
+                    imageVector = Icons.Default.Settings,
+                    contentDescription = "Ayarlar",
+                    tint = colorScheme.onSurface
+                )
+            }
+        }
 
         // Bağlantı durumu banner'ı (offline / senkron)
         when (val state = connectionBanner) {
@@ -127,14 +161,14 @@ fun HomeScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Color(0xFF332200), RoundedCornerShape(8.dp))
+                        .background(warningColor.copy(alpha = 0.25f), RoundedCornerShape(8.dp))
                         .padding(12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
                         text = text,
                         style = MaterialTheme.typography.bodySmall,
-                        color = AstroWarning
+                        color = warningColor
                     )
                 }
             }
@@ -142,14 +176,14 @@ fun HomeScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(AstroSuccess.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
+                        .background(successColor.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
                         .padding(12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
                         text = "✓ Senkronize edildi",
                         style = MaterialTheme.typography.bodySmall,
-                        color = AstroSuccess
+                        color = successColor
                     )
                 }
             }
@@ -160,14 +194,14 @@ fun HomeScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .clickable(onClick = onNavigateToSession)
-                .background(AstroCardBackground, RoundedCornerShape(8.dp))
+                .background(colorScheme.surfaceVariant, RoundedCornerShape(8.dp))
                 .padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
                 text = "\uD83D\uDCCB ${selectedSession?.name ?: "Serbest Ölçüm"}",
                 style = MaterialTheme.typography.bodyMedium,
-                color = AstroTextPrimary
+                color = colorScheme.onSurface
             )
         }
 
@@ -201,16 +235,16 @@ fun HomeScreen(
             Text(
                 text = "Yönelim Verisini Ekle",
                 style = MaterialTheme.typography.bodyMedium,
-                color = AstroTextSecondary
+                color = colorScheme.onSurfaceVariant
             )
             Switch(
                 checked = orientationEnabled,
                 onCheckedChange = { viewModel.onOrientationToggle(it) },
                 colors = SwitchDefaults.colors(
-                    checkedThumbColor = AstroPrimary,
-                    checkedTrackColor = AstroCardBackground,
-                    uncheckedThumbColor = AstroDisabled,
-                    uncheckedTrackColor = AstroSurface
+                    checkedThumbColor = colorScheme.primary,
+                    checkedTrackColor = colorScheme.surfaceVariant,
+                    uncheckedThumbColor = colorScheme.outline,
+                    uncheckedTrackColor = colorScheme.surface
                 )
             )
         }
@@ -244,13 +278,13 @@ fun HomeScreen(
             Text(
                 text = locationText,
                 style = MaterialTheme.typography.bodyMedium,
-                color = AstroTextSecondary
+                color = colorScheme.onSurfaceVariant
             )
             if (showGpsWarning) {
                 Text(
                     text = "GPS kapalı, lütfen açın",
                     style = MaterialTheme.typography.bodySmall,
-                    color = AstroError,
+                    color = colorScheme.error,
                     modifier = Modifier.clickable {
                         context.startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS))
                     }
@@ -266,13 +300,13 @@ fun HomeScreen(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(12.dp),
             colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = AstroPrimary,
-                unfocusedBorderColor = AstroDisabled,
-                cursorColor = AstroPrimary,
-                focusedLabelColor = AstroTextSecondary,
-                unfocusedLabelColor = AstroDisabled,
-                focusedTextColor = AstroTextPrimary,
-                unfocusedTextColor = AstroTextPrimary
+                focusedBorderColor = colorScheme.primary,
+                unfocusedBorderColor = colorScheme.outline,
+                cursorColor = colorScheme.primary,
+                focusedLabelColor = colorScheme.onSurfaceVariant,
+                unfocusedLabelColor = colorScheme.outline,
+                focusedTextColor = colorScheme.onSurface,
+                unfocusedTextColor = colorScheme.onSurface
             ),
             singleLine = true
         )
@@ -290,10 +324,10 @@ fun HomeScreen(
             Text(
                 text = errorMsg,
                 style = MaterialTheme.typography.bodyMedium,
-                color = AstroError,
+                color = colorScheme.error,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(AstroError.copy(alpha = 0.15f), RoundedCornerShape(8.dp))
+                    .background(colorScheme.error.copy(alpha = 0.15f), RoundedCornerShape(8.dp))
                     .padding(12.dp)
             )
         }
@@ -303,30 +337,30 @@ fun HomeScreen(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(AstroCardBackground, RoundedCornerShape(12.dp))
+                    .background(colorScheme.surfaceVariant, RoundedCornerShape(12.dp))
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 Text(
                     text = "Son Ölçüm",
                     style = MaterialTheme.typography.titleMedium,
-                    color = AstroTextPrimary
+                    color = colorScheme.onSurface
                 )
                 Text(
                     text = "MPSAS: ${String.format("%.2f", m.sqmValue)}  •  Bortle: ${m.bortleClass}",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = AstroTextSecondary
+                    color = colorScheme.onSurfaceVariant
                 )
                 Text(
                     text = "Konum: ${String.format("%.4f", m.latitude)}, ${String.format("%.4f", m.longitude)}",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = AstroTextSecondary
+                    color = colorScheme.onSurfaceVariant
                 )
                 m.note?.let { note ->
                     Text(
                         text = "Not: $note",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = AstroTextSecondary
+                        color = colorScheme.onSurfaceVariant
                     )
                 }
             }

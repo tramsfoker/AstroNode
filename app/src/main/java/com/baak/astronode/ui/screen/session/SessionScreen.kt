@@ -37,12 +37,6 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.baak.astronode.core.model.Session
-import com.baak.astronode.core.theme.CardBackground
-import com.baak.astronode.core.theme.PrimaryAccent
-import com.baak.astronode.core.theme.Success
-import com.baak.astronode.core.theme.Surface
-import com.baak.astronode.core.theme.TextPrimary
-import com.baak.astronode.core.theme.TextSecondary
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -58,30 +52,31 @@ fun SessionScreen(
     val activeSessions by viewModel.activeSessions.collectAsStateWithLifecycle()
     val selectedSession by viewModel.selectedSession.collectAsStateWithLifecycle()
     var showCreateDialog by remember { mutableStateOf(false) }
+    val colorScheme = MaterialTheme.colorScheme
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Etkinlik Seç", color = TextPrimary) },
+                title = { Text("Etkinlik Seç", color = colorScheme.onBackground) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Geri",
-                            tint = TextPrimary
+                            tint = colorScheme.onBackground
                         )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Surface,
-                    titleContentColor = TextPrimary
+                    containerColor = colorScheme.surface,
+                    titleContentColor = colorScheme.onBackground
                 ),
                 actions = {
                     IconButton(onClick = { showCreateDialog = true }) {
                         Icon(
                             Icons.Default.Add,
                             contentDescription = "Yeni Etkinlik",
-                            tint = TextPrimary
+                            tint = colorScheme.onBackground
                         )
                     }
                 }
@@ -91,7 +86,7 @@ fun SessionScreen(
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Surface)
+                .background(colorScheme.background)
                 .padding(padding),
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -101,25 +96,25 @@ fun SessionScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable { viewModel.selectSession(null) },
-                    colors = CardDefaults.cardColors(containerColor = CardBackground),
+                    colors = CardDefaults.cardColors(containerColor = colorScheme.surface),
                     shape = RoundedCornerShape(12.dp)
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text(
                             text = "Serbest Ölçüm",
                             style = MaterialTheme.typography.titleMedium,
-                            color = TextPrimary
+                            color = colorScheme.onBackground
                         )
                         Text(
                             text = "Etkinliğe bağlı olmayan ölçüm",
                             style = MaterialTheme.typography.bodySmall,
-                            color = TextSecondary
+                            color = colorScheme.onSurfaceVariant
                         )
                         if (selectedSession == null) {
                             Text(
                                 text = "✓ Seçili",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = Success,
+                                color = colorScheme.primary,
                                 modifier = Modifier.padding(top = 4.dp)
                             )
                         }
@@ -153,42 +148,43 @@ private fun SessionItem(
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
+    val colorScheme = MaterialTheme.colorScheme
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick),
-        colors = CardDefaults.cardColors(containerColor = CardBackground),
+        colors = CardDefaults.cardColors(containerColor = colorScheme.surface),
         shape = RoundedCornerShape(12.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
                 text = session.name,
                 style = MaterialTheme.typography.titleMedium,
-                color = TextPrimary
+                color = colorScheme.onBackground
             )
             Text(
                 text = dateFormat.format(Date(session.date)),
                 style = MaterialTheme.typography.bodySmall,
-                color = TextSecondary
+                color = colorScheme.onSurfaceVariant
             )
             session.participantCount?.let { count ->
                 Text(
                     text = "$count katılımcı",
                     style = MaterialTheme.typography.bodySmall,
-                    color = TextSecondary
+                    color = colorScheme.onSurfaceVariant
                 )
             }
             Text(
                 text = if (session.isActive) "Aktif" else "Tamamlandı",
                 style = MaterialTheme.typography.labelSmall,
-                color = if (session.isActive) Success else TextSecondary,
+                color = if (session.isActive) colorScheme.primary else colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 4.dp)
             )
             if (isSelected) {
                 Text(
                     text = "✓ Bu etkinliğe katılıyorsunuz",
                     style = MaterialTheme.typography.labelSmall,
-                    color = PrimaryAccent,
+                    color = colorScheme.primary,
                     modifier = Modifier.padding(top = 4.dp)
                 )
             }
@@ -203,40 +199,41 @@ private fun CreateSessionDialog(
 ) {
     var name by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
+    val colorScheme = MaterialTheme.colorScheme
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Yeni Etkinlik", color = TextPrimary) },
+        title = { Text("Yeni Etkinlik", color = colorScheme.onBackground) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
-                    label = { Text("Etkinlik adı (zorunlu)", color = TextSecondary) },
+                    label = { Text("Etkinlik adı (zorunlu)", color = colorScheme.onSurfaceVariant) },
                     modifier = Modifier.fillMaxWidth(),
                     colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = PrimaryAccent,
-                        unfocusedBorderColor = TextSecondary,
-                        cursorColor = PrimaryAccent,
-                        focusedLabelColor = TextSecondary,
-                        unfocusedLabelColor = TextSecondary,
-                        focusedTextColor = TextPrimary,
-                        unfocusedTextColor = TextPrimary
+                        focusedBorderColor = colorScheme.primary,
+                        unfocusedBorderColor = colorScheme.outline,
+                        cursorColor = colorScheme.primary,
+                        focusedLabelColor = colorScheme.onSurfaceVariant,
+                        unfocusedLabelColor = colorScheme.onSurfaceVariant,
+                        focusedTextColor = colorScheme.onSurface,
+                        unfocusedTextColor = colorScheme.onSurface
                     )
                 )
                 OutlinedTextField(
                     value = description,
                     onValueChange = { description = it },
-                    label = { Text("Açıklama (opsiyonel)", color = TextSecondary) },
+                    label = { Text("Açıklama (opsiyonel)", color = colorScheme.onSurfaceVariant) },
                     modifier = Modifier.fillMaxWidth(),
                     colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = PrimaryAccent,
-                        unfocusedBorderColor = TextSecondary,
-                        cursorColor = PrimaryAccent,
-                        focusedLabelColor = TextSecondary,
-                        unfocusedLabelColor = TextSecondary,
-                        focusedTextColor = TextPrimary,
-                        unfocusedTextColor = TextPrimary
+                        focusedBorderColor = colorScheme.primary,
+                        unfocusedBorderColor = colorScheme.outline,
+                        cursorColor = colorScheme.primary,
+                        focusedLabelColor = colorScheme.onSurfaceVariant,
+                        unfocusedLabelColor = colorScheme.onSurfaceVariant,
+                        focusedTextColor = colorScheme.onSurface,
+                        unfocusedTextColor = colorScheme.onSurface
                     )
                 )
             }
@@ -254,6 +251,6 @@ private fun CreateSessionDialog(
                 Text("İptal")
             }
         },
-        containerColor = CardBackground
+        containerColor = colorScheme.surface
     )
 }

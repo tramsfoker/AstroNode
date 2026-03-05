@@ -16,8 +16,9 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.graphics.Color
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.luminance
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -29,6 +30,7 @@ import com.baak.astronode.ui.screen.history.HistoryScreen
 import com.baak.astronode.ui.screen.home.HomeScreen
 import com.baak.astronode.ui.screen.session.SessionScreen
 import com.baak.astronode.ui.screen.map.MapScreen
+import com.baak.astronode.ui.screen.settings.SettingsScreen
 import com.baak.astronode.ui.screen.splash.SplashScreen
 
 object Routes {
@@ -38,6 +40,7 @@ object Routes {
     const val MAP_FOCUS = "map/{lat}/{lng}"
     const val HISTORY = "history"
     const val SESSION = "session"
+    const val SETTINGS = "settings"
 }
 
 @Composable
@@ -56,7 +59,11 @@ fun NavGraph() {
                 enter = fadeIn(),
                 exit = fadeOut()
             ) {
-                NavigationBar {
+                val colorScheme = MaterialTheme.colorScheme
+                val isDarkTheme = colorScheme.background.luminance() < 0.2f
+                NavigationBar(
+                    containerColor = if (isDarkTheme) colorScheme.surfaceVariant else colorScheme.surface
+                ) {
                     listOf(
                         Triple(Routes.HOME, Icons.Default.Science, "Ölçüm"),
                         Triple(Routes.MAP, Icons.Default.Map, "Harita"),
@@ -68,10 +75,10 @@ fun NavGraph() {
                             selected = currentRoute == route ||
                                 (route == Routes.MAP && currentRoute?.startsWith("map") == true),
                             colors = NavigationBarItemDefaults.colors(
-                                selectedIconColor = Color(0xFFE83E2E),
-                                unselectedIconColor = Color(0xFF888888),
-                                selectedTextColor = Color(0xFFE83E2E),
-                                unselectedTextColor = Color(0xFF888888)
+                                selectedIconColor = MaterialTheme.colorScheme.primary,
+                                unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                selectedTextColor = MaterialTheme.colorScheme.primary,
+                                unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
                             ),
                             onClick = {
                                 val targetRoute = if (route == Routes.MAP) Routes.MAP else route
@@ -107,6 +114,9 @@ fun NavGraph() {
                 HomeScreen(
                     onNavigateToSession = {
                         navController.navigate(Routes.SESSION)
+                    },
+                    onNavigateToSettings = {
+                        navController.navigate(Routes.SETTINGS)
                     }
                 )
             }
@@ -131,6 +141,11 @@ fun NavGraph() {
             }
             composable(Routes.HISTORY) {
                 HistoryScreen(navController = navController)
+            }
+            composable(Routes.SETTINGS) {
+                SettingsScreen(
+                    onNavigateBack = { navController.popBackStack() }
+                )
             }
         }
     }

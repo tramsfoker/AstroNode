@@ -15,8 +15,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.baak.astronode.core.util.BortleScale
-import com.baak.astronode.ui.theme.AstroCardBackground
-import com.baak.astronode.ui.theme.AstroTextSecondary
 
 @Composable
 fun SqmGauge(
@@ -24,15 +22,16 @@ fun SqmGauge(
     bortleClass: Int?,
     modifier: Modifier = Modifier
 ) {
+    val colorScheme = MaterialTheme.colorScheme
     val displayValue = mpsas?.let { String.format("%.2f", it) } ?: "—"
-    val ringColor = bortleClass?.let { BortleScale.bortleColor(it) }
-        ?: AstroCardBackground
+    val ringColor = bortleClass?.let { BortleScale.toBortleColor(it) }
+        ?: colorScheme.surfaceVariant
     val bortleLabel = bortleClass?.let { "Bortle $it" } ?: ""
 
     Box(modifier = modifier.size(200.dp), contentAlignment = Alignment.Center) {
         Canvas(modifier = Modifier.size(200.dp)) {
             drawArc(
-                color = AstroCardBackground,
+                color = colorScheme.surfaceVariant,
                 startAngle = 0f,
                 sweepAngle = 360f,
                 useCenter = false,
@@ -59,7 +58,7 @@ fun SqmGauge(
             Text(
                 text = "Mag/arcsec²",
                 style = MaterialTheme.typography.labelSmall,
-                color = AstroTextSecondary
+                color = colorScheme.onSurfaceVariant
             )
             if (bortleLabel.isNotEmpty()) {
                 Text(

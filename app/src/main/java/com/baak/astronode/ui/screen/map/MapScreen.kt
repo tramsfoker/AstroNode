@@ -23,16 +23,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.baak.astronode.core.model.SkyMeasurement
-import com.baak.astronode.core.theme.CardBackground
-import com.baak.astronode.core.theme.PrimaryAccent
-import com.baak.astronode.core.theme.Surface
-import com.baak.astronode.core.theme.TextPrimary
-import com.baak.astronode.core.theme.TextSecondary
 import com.baak.astronode.R
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.model.CameraPosition
@@ -102,12 +98,15 @@ fun MapScreen(
             }
     }
 
-    val mapProperties = remember {
+    val isDarkTheme = MaterialTheme.colorScheme.background.luminance() < 0.2f
+    val mapProperties = remember(isDarkTheme) {
         MapProperties(
-            mapStyleOptions = com.google.android.gms.maps.model.MapStyleOptions.loadRawResourceStyle(
-                context,
-                R.raw.map_style
-            ),
+            mapStyleOptions = if (isDarkTheme) {
+                com.google.android.gms.maps.model.MapStyleOptions.loadRawResourceStyle(
+                    context,
+                    R.raw.map_style
+                )
+            } else null,  // Light temada varsayılan harita stili
             isMyLocationEnabled = false  // Varsayılan mavi noktayı KAPAT (cluster ile çakışmasın)
         )
     }
@@ -127,10 +126,11 @@ fun MapScreen(
 
     var clusterManager by remember { mutableStateOf<ClusterManager<MeasurementClusterItem>?>(null) }
 
+    val colorScheme = MaterialTheme.colorScheme
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Surface)
+            .background(colorScheme.surface)
     ) {
         GoogleMap(
             modifier = Modifier.fillMaxSize(),
@@ -170,13 +170,13 @@ fun MapScreen(
                     .padding(16.dp)
             ) {
                 Card(
-                    colors = CardDefaults.cardColors(containerColor = CardBackground),
+                    colors = CardDefaults.cardColors(containerColor = colorScheme.surfaceVariant),
                     modifier = Modifier.padding(horizontal = 16.dp)
                 ) {
                     Text(
                         text = "Harita çevrimdışı kullanılamıyor",
                         style = MaterialTheme.typography.bodySmall,
-                        color = TextSecondary,
+                        color = colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(12.dp)
                     )
                 }
@@ -191,7 +191,7 @@ fun MapScreen(
                         .padding(16.dp)
                 ) {
                     CircularProgressIndicator(
-                        color = PrimaryAccent,
+                        color = colorScheme.primary,
                         modifier = Modifier.size(32.dp)
                     )
                 }
@@ -204,7 +204,7 @@ fun MapScreen(
                 ) {
                     Text(
                         text = state.message,
-                        color = TextSecondary,
+                        color = colorScheme.onSurfaceVariant,
                         style = MaterialTheme.typography.bodySmall
                     )
                 }
@@ -218,8 +218,8 @@ fun MapScreen(
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .padding(16.dp),
-            containerColor = PrimaryAccent,
-            contentColor = TextPrimary
+            containerColor = colorScheme.primary,
+            contentColor = colorScheme.onPrimary
         ) {
             Icon(
                 imageVector = Icons.Default.MyLocation,
@@ -247,13 +247,13 @@ fun MapScreen(
                     .align(Alignment.BottomCenter)
                     .padding(16.dp)
                     .padding(bottom = 72.dp),
-                colors = CardDefaults.cardColors(containerColor = CardBackground),
+                colors = CardDefaults.cardColors(containerColor = colorScheme.surfaceVariant),
                 onClick = { selectedMeasurement = null }
             ) {
                 Text(
                     text = formatInfoWindow(m),
                     style = MaterialTheme.typography.bodyMedium,
-                    color = TextPrimary,
+                    color = colorScheme.onSurface,
                     modifier = Modifier.padding(16.dp)
                 )
             }

@@ -6,10 +6,17 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
+import com.baak.astronode.core.util.ThemeMode
+import com.baak.astronode.core.util.ThemePreference
 import com.baak.astronode.data.migration.GeoHashMigration
 import com.baak.astronode.ui.navigation.NavGraph
 import com.baak.astronode.ui.theme.AstroNodeTheme
+import com.baak.astronode.ui.theme.LocalThemePreference
+import androidx.compose.runtime.CompositionLocalProvider
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -20,6 +27,9 @@ class MainActivity : ComponentActivity() {
 
     @Inject
     lateinit var geoHashMigration: GeoHashMigration
+
+    @Inject
+    lateinit var themePreference: ThemePreference
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -35,8 +45,17 @@ class MainActivity : ComponentActivity() {
 
         enableEdgeToEdge()
         setContent {
-            AstroNodeTheme {
-                NavGraph()
+            val themeMode by themePreference.themeModeFlow.collectAsStateWithLifecycle()
+            val isSystemDark = isSystemInDarkTheme()
+            val darkTheme = when (themeMode) {
+                ThemeMode.LIGHT -> false
+                ThemeMode.DARK -> true
+                ThemeMode.AUTO -> isSystemDark
+            }
+            AstroNodeTheme(darkTheme = darkTheme) {
+                CompositionLocalProvider(LocalThemePreference provides themePreference) {
+                    NavGraph()
+                }
             }
         }
     }

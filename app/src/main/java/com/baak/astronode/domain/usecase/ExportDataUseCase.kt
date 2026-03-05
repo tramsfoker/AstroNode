@@ -20,15 +20,15 @@ class ExportDataUseCase @Inject constructor(
 
     private val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US)
 
-    suspend fun exportToCsv(): Uri? = withContext(Dispatchers.IO) {
-        val measurements = firestoreManager.getMeasurementsOnce()
-        if (measurements.isEmpty()) return@withContext null
+    suspend fun exportToCsv(measurements: List<SkyMeasurement>? = null): Uri? = withContext(Dispatchers.IO) {
+        val list = measurements ?: firestoreManager.getMeasurementsOnce()
+        if (list.isEmpty()) return@withContext null
 
         val fileName = "measurements_${System.currentTimeMillis()}.csv"
         val file = File(context.cacheDir, fileName)
 
         val header = "timestamp,sqm_value,bortle_class,latitude,longitude,altitude,azimuth,pitch,roll,note,session_id,session_name"
-        val lines = measurements.map { m ->
+        val lines = list.map { m ->
             val ts = dateFormat.format(Date(m.timestamp))
             val lat = m.latitude.toString()
             val lng = m.longitude.toString()

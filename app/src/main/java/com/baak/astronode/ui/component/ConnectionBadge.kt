@@ -14,13 +14,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.unit.dp
 import com.baak.astronode.data.usb.UsbConnectionState
-import com.baak.astronode.ui.theme.AstroCardBackground
-import com.baak.astronode.ui.theme.AstroDisabled
 import com.baak.astronode.ui.theme.AstroError
 import com.baak.astronode.ui.theme.AstroSuccess
 import com.baak.astronode.ui.theme.AstroWarning
+import com.baak.astronode.ui.theme.LightError
+import com.baak.astronode.ui.theme.LightSuccess
+import com.baak.astronode.ui.theme.LightWarning
 
 @Composable
 fun ConnectionBadge(
@@ -28,16 +30,22 @@ fun ConnectionBadge(
     driverName: String?,
     modifier: Modifier = Modifier
 ) {
+    val colorScheme = MaterialTheme.colorScheme
+    val isDarkTheme = colorScheme.background.luminance() < 0.2f
+    val successColor = if (isDarkTheme) AstroSuccess else LightSuccess
+    val warningColor = if (isDarkTheme) AstroWarning else LightWarning
+    val errorColor = if (isDarkTheme) AstroError else LightError
+
     val (dotColor, label) = when (state) {
-        UsbConnectionState.CONNECTED -> AstroSuccess to "USB: Bağlı${driverName?.let { " ($it)" } ?: ""}"
-        UsbConnectionState.PERMISSION_PENDING -> AstroWarning to "USB: İzin bekleniyor"
-        UsbConnectionState.ERROR -> AstroError to "USB: Hata"
-        UsbConnectionState.DISCONNECTED -> AstroDisabled to "USB: Bağlı Değil"
+        UsbConnectionState.CONNECTED -> successColor to "USB: Bağlı${driverName?.let { " ($it)" } ?: ""}"
+        UsbConnectionState.PERMISSION_PENDING -> warningColor to "USB: İzin bekleniyor"
+        UsbConnectionState.ERROR -> errorColor to "USB: Hata"
+        UsbConnectionState.DISCONNECTED -> colorScheme.outline to "USB: Bağlı Değil"
     }
 
     Row(
         modifier = modifier
-            .background(AstroCardBackground, RoundedCornerShape(8.dp))
+            .background(colorScheme.surfaceVariant, RoundedCornerShape(8.dp))
             .padding(horizontal = 12.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp)

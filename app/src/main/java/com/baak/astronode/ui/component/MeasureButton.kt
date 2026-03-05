@@ -7,14 +7,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.baak.astronode.ui.theme.AstroDisabled
-import com.baak.astronode.ui.theme.AstroPrimary
-import com.baak.astronode.ui.theme.AstroTextPrimary
 
 @Composable
 fun MeasureButton(
@@ -22,6 +21,7 @@ fun MeasureButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val colorScheme = MaterialTheme.colorScheme
     Button(
         onClick = onClick,
         enabled = !isLoading,
@@ -30,22 +30,25 @@ fun MeasureButton(
             .height(64.dp),
         shape = RoundedCornerShape(16.dp),
         colors = ButtonDefaults.buttonColors(
-            containerColor = AstroPrimary,
-            contentColor = AstroTextPrimary,
-            disabledContainerColor = AstroDisabled,
-            disabledContentColor = AstroTextPrimary.copy(alpha = 0.5f)
+            containerColor = colorScheme.primary,
+            contentColor = colorScheme.onPrimary,
+            disabledContainerColor = colorScheme.surfaceVariant,
+            disabledContentColor = colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
         )
     ) {
         if (isLoading) {
             CircularProgressIndicator(
                 modifier = Modifier.size(24.dp),
-                color = AstroTextPrimary,
+                color = colorScheme.onPrimary,
                 strokeWidth = 2.dp
             )
         } else {
             Text(
                 text = "ÖLÇÜM YAP",
-                fontSize = 18.sp
+                fontSize = 20.sp,
+                fontWeight = FontWeight.ExtraBold,
+                letterSpacing = 2.sp,
+                color = colorScheme.onPrimary
             )
         }
     }

@@ -9,7 +9,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.baak.astronode.data.sensor.OrientationData
-import com.baak.astronode.ui.theme.AstroTextSecondary
 
 @Composable
 fun OrientationDisplay(
@@ -32,6 +31,6 @@ private fun OrientationValue(label: String, value: Float?, unit: String) {
     Text(
         text = "$label: $display",
         style = MaterialTheme.typography.bodyMedium,
-        color = AstroTextSecondary
+        color = MaterialTheme.colorScheme.onSurfaceVariant
     )
 }
