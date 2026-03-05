@@ -2,17 +2,17 @@ package com.baak.astronode.core.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Bölüm 4.1 — Astronomi Modu Renk Paleti
-val Surface = Color(0xFF0A0A0A)
-val CardBackground = Color(0xFF1A1A1A)
-val PrimaryAccent = Color(0xFFCC2200)
+// Bölüm 4.1 — Astronomi Modu Renk Paleti (okunabilir karanlık tema)
+val Surface = Color(0xFF121212)
+val CardBackground = Color(0xFF1E1E1E)
+val PrimaryAccent = Color(0xFFE83E2E)
 val SecondaryAccent = Color(0xFF1A3A5C)
-val TextPrimary = Color(0xFFCC4444)
-val TextSecondary = Color(0xFF884444)
-val Success = Color(0xFF336633)
-val Warning = Color(0xFF665522)
-val Error = Color(0xFF663333)
-val Disabled = Color(0xFF333333)
+val TextPrimary = Color(0xFFFF6B6B)
+val TextSecondary = Color(0xFFCC8888)
+val Success = Color(0xFF4CAF50)
+val Warning = Color(0xFFFFA726)
+val Error = Color(0xFFEF5350)
+val Disabled = Color(0xFF555555)
 
 // Bölüm 3.3 — Bortle Skalası Renkleri (1–9)
 val Bortle1 = Color(0xFF000033)

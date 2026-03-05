@@ -11,10 +11,12 @@ import androidx.compose.material.icons.filled.Place
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
@@ -58,6 +60,12 @@ fun NavGraph() {
                             icon = { Icon(icon, contentDescription = label) },
                             label = { Text(label) },
                             selected = currentRoute == route,
+                            colors = NavigationBarItemDefaults.colors(
+                                selectedIconColor = Color(0xFFE83E2E),
+                                unselectedIconColor = Color(0xFF888888),
+                                selectedTextColor = Color(0xFFE83E2E),
+                                unselectedTextColor = Color(0xFF888888)
+                            ),
                             onClick = {
                                 navController.navigate(route) {
                                     popUpTo(navController.graph.findStartDestination().id) {

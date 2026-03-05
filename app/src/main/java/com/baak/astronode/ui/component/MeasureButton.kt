@@ -13,9 +13,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.baak.astronode.core.theme.PrimaryAccent
-import com.baak.astronode.core.theme.Surface
 
 @Composable
 fun MeasureButton(
@@ -32,9 +32,9 @@ fun MeasureButton(
         shape = RoundedCornerShape(16.dp),
         colors = ButtonDefaults.buttonColors(
             containerColor = PrimaryAccent,
-            contentColor = Surface,
+            contentColor = Color.White,
             disabledContainerColor = PrimaryAccent.copy(alpha = 0.5f),
-            disabledContentColor = Surface
+            disabledContentColor = Color.White
         )
     ) {
         Box(
@@ -44,7 +44,7 @@ fun MeasureButton(
             if (isLoading) {
                 CircularProgressIndicator(
                     modifier = Modifier.padding(8.dp),
-                    color = Surface,
+                    color = Color.White,
                     strokeWidth = 2.dp
                 )
             } else {
