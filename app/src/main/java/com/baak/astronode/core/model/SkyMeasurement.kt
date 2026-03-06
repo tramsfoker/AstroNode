@@ -21,5 +21,21 @@ data class SkyMeasurement(
     val geohash: String? = null,
     val isTest: Boolean = false,
     val observerUid: String = "",
-    val observerName: String = ""
+    val observerName: String = "",
+    val weather: WeatherData? = null,
+    // Hava durumu (Open-Meteo'dan)
+    val temperature: Double? = null,
+    val humidity: Int? = null,
+    val cloudCover: Int? = null,
+    val windSpeed: Double? = null,
+    val visibility: Double? = null,
+    // Ay bilgisi (lokal hesaplama)
+    val moonPhase: String? = null,
+    val moonIllumination: Int? = null,
+    val moonEmoji: String? = null,
+    // Gözlem koşulları
+    val observingScore: Int? = null,
+    val observingRating: String? = null,
+    val isDaytime: Boolean = false,
+    val measurementTime: String? = null,
 )

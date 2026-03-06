@@ -50,7 +50,7 @@ class LocationProvider @Inject constructor(
     @SuppressLint("MissingPermission")
     fun startUpdates() {
         val request = LocationRequest.Builder(
-            Priority.PRIORITY_HIGH_ACCURACY,
+            Priority.PRIORITY_BALANCED_POWER_ACCURACY,
             AppConstants.LOCATION_INTERVAL_MS
         )
             .setMinUpdateDistanceMeters(AppConstants.LOCATION_MIN_DISTANCE_M)

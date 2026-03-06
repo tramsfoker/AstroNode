@@ -83,6 +83,9 @@ dependencies {
     // USB Serial
     implementation(libs.usb.serial)
 
+    // OkHttp
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+
     // Coroutines
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.kotlinx.coroutines.android)

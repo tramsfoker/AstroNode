@@ -12,9 +12,9 @@ object AppConstants {
     const val MPSAS_MIN = 10.0
     const val MPSAS_MAX = 25.0
 
-    // Konum güncelleme
-    const val LOCATION_INTERVAL_MS = 5000L
-    const val LOCATION_MIN_DISTANCE_M = 10f
+    // Konum güncelleme (pil tasarrufu: 30s, 50m min mesafe)
+    const val LOCATION_INTERVAL_MS = 30_000L
+    const val LOCATION_MIN_DISTANCE_M = 50f
 
     // Oryantasyon filtresi
     const val ORIENTATION_LOW_PASS_ALPHA = 0.15f

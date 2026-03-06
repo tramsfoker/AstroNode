@@ -565,11 +565,25 @@ private fun MeasurementItem(
                         )
                 )
                 Text(
-                    text = timeFormat.format(Date(measurement.timestamp)),
+                    text = measurement.measurementTime ?: timeFormat.format(Date(measurement.timestamp)),
                     style = MaterialTheme.typography.titleMedium,
                     color = colorScheme.onSurface,
                     modifier = Modifier.padding(start = 8.dp)
                 )
+                if (measurement.isDaytime) {
+                    Surface(
+                        modifier = Modifier.padding(start = 8.dp),
+                        shape = RoundedCornerShape(8.dp),
+                        color = colorScheme.errorContainer
+                    ) {
+                        Text(
+                            text = "☀️ Gündüz",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = colorScheme.onErrorContainer,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
+                }
                 if (measurement.isTest) {
                     Surface(
                         modifier = Modifier.padding(start = 8.dp),
@@ -615,6 +629,30 @@ private fun MeasurementItem(
                 color = colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 4.dp)
             )
+            // Koşul satırı: hava + ay (null ise gösterme)
+            buildString {
+                measurement.temperature?.let { append("🌡${it.toInt()}°C ") }
+                measurement.cloudCover?.let { append("☁%$it ") }
+                measurement.windSpeed?.let { append("💨${it.toInt()}km/s ") }
+                measurement.moonEmoji?.let { append(it) }
+                measurement.moonIllumination?.let { append("%$it ") }
+            }.takeIf { it.isNotBlank() }?.let { conditions ->
+                Text(
+                    text = conditions.trim(),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 2.dp)
+                )
+            }
+            // Gözlem skoru
+            measurement.observingScore?.let { score ->
+                Text(
+                    text = "🔭 Skor: $score${measurement.observingRating?.let { " — $it" } ?: ""}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 2.dp)
+                )
+            }
             measurement.sessionName?.takeIf { it.isNotBlank() }?.let { name ->
                 Text(
                     text = "📋 $name",

@@ -10,9 +10,11 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -40,6 +42,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.rememberCoroutineScope
@@ -62,7 +65,10 @@ import com.baak.astronode.ui.component.MeasureButton
 import com.baak.astronode.ui.component.OrientationDisplay
 import com.baak.astronode.ui.component.SqmGauge
 import com.baak.astronode.ui.screen.home.ConnectionBannerState
+import com.baak.astronode.core.util.SunCalc
+import com.baak.astronode.ui.screen.home.WeatherWidgetState
 import com.baak.astronode.R
+import androidx.compose.ui.graphics.Color
 import kotlinx.coroutines.launch
 
 @Composable
@@ -81,6 +87,8 @@ fun HomeScreen(
     val isTestMeasurement by viewModel.isTestMeasurement.collectAsStateWithLifecycle()
     val selectedSession by viewModel.selectedSession.collectAsStateWithLifecycle()
     val userProfile by viewModel.userProfile.collectAsStateWithLifecycle()
+    val weatherWidget by viewModel.weatherWidgetState.collectAsStateWithLifecycle()
+    val pendingDaytimeMeasurement by viewModel.pendingDaytimeMeasurement.collectAsStateWithLifecycle()
 
     var noteText by rememberSaveable { mutableStateOf("") }
     var nickname by remember { mutableStateOf("") }
@@ -319,6 +327,7 @@ fun HomeScreen(
                 style = MaterialTheme.typography.bodyMedium,
                 color = colorScheme.onSurfaceVariant
             )
+            WeatherWidgetCard(weatherWidget = weatherWidget)
             if (showGpsWarning) {
                 Text(
                     text = "GPS kapalı, lütfen açın",
@@ -373,7 +382,8 @@ fun HomeScreen(
         MeasureButton(
             isLoading = measurementState.isLoading,
             onClick = {
-                viewModel.onMeasureClick(noteText.takeIf { it.isNotBlank() })
+                android.util.Log.d("BUTON", "=== ÖLÇÜM BUTONUNA BASILDI ===")
+                viewModel.onMeasureClick(noteText, isTestMeasurement)
             }
         )
 
@@ -411,6 +421,47 @@ fun HomeScreen(
             }
         }
     }
+    }
+
+    pendingDaytimeMeasurement?.let { note ->
+        val timeStatus = weatherWidget.observingTimeStatus
+        AlertDialog(
+            onDismissRequest = { viewModel.onDismissDaytimeWarning() },
+            title = { Text("${timeStatus.emoji} Gözlem Zamanı Değil", color = colorScheme.onSurface) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        timeStatus.reason,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = colorScheme.onSurface
+                    )
+                    Text(
+                        timeStatus.detail,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        "Gündüz yapılan SQM ölçümleri bilimsel olarak geçersizdir. Yine de devam etmek ister misiniz?",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = colorScheme.onSurfaceVariant
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.onConfirmDaytimeTest(note)
+                }) {
+                    Text("Test Olarak Ölç", color = colorScheme.primary)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { viewModel.onDismissDaytimeWarning() }) {
+                    Text("İptal", color = colorScheme.onSurfaceVariant)
+                }
+            },
+            containerColor = colorScheme.surface
+        )
     }
 
     if (needsProfileSetup) {
@@ -458,5 +509,96 @@ fun HomeScreen(
             },
             containerColor = colorScheme.surface
         )
+    }
+}
+
+@Composable
+private fun WeatherWidgetCard(weatherWidget: WeatherWidgetState) {
+    val colorScheme = MaterialTheme.colorScheme
+    val w = weatherWidget.weather
+    val moon = weatherWidget.moon
+    val obs = weatherWidget.observingCondition
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(colorScheme.surfaceVariant.copy(alpha = 0.6f), RoundedCornerShape(8.dp))
+            .padding(12.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            w?.temperature?.let { temp ->
+                Text(
+                    text = "🌡 ${temp.toInt()}°C",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = colorScheme.onSurfaceVariant
+                )
+            }
+            w?.cloudCover?.let { cloud ->
+                Text(
+                    text = "☁ %$cloud",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = colorScheme.onSurfaceVariant
+                )
+            }
+            w?.windSpeed?.let { wind ->
+                Text(
+                    text = "💨 ${wind.toInt()} km/s",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = colorScheme.onSurfaceVariant
+                )
+            }
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "${moon.emoji} ${moon.phaseName} (%${moon.illumination}) — Gözlem: ${obs.rating}",
+                style = MaterialTheme.typography.bodySmall,
+                color = colorScheme.onSurfaceVariant
+            )
+        }
+        val timeStatus = weatherWidget.observingTimeStatus
+        Text(
+            text = if (timeStatus.canObserve) {
+                "${timeStatus.emoji} ${timeStatus.detail} ✅"
+            } else {
+                val untilStr = SunCalc.formatMinutesUntilSunset(timeStatus.sunsetTime)
+                val line1 = if (untilStr.isNotEmpty()) "Güneş batışına $untilStr" else timeStatus.detail
+                "$line1\n⚠️ Gözlem için erken"
+            },
+            style = MaterialTheme.typography.labelSmall,
+            color = if (timeStatus.canObserve) colorScheme.primary else colorScheme.error
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(8.dp)
+                    .background(colorScheme.surface, RoundedCornerShape(4.dp))
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .fillMaxWidth(obs.score / 100f)
+                        .background(Color(obs.color), RoundedCornerShape(4.dp))
+                )
+            }
+            Text(
+                text = "Skor: ${obs.score}",
+                style = MaterialTheme.typography.labelMedium,
+                color = colorScheme.onSurfaceVariant
+            )
+        }
     }
 }

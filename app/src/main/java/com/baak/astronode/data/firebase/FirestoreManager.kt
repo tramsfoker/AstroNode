@@ -5,6 +5,7 @@ import com.baak.astronode.core.constants.AppConstants
 import kotlin.random.Random
 import com.baak.astronode.core.model.Session
 import com.baak.astronode.core.model.SkyMeasurement
+import com.baak.astronode.core.model.WeatherData
 import com.baak.astronode.core.util.GeoHashUtil
 import com.baak.astronode.core.util.NetworkMonitor
 import com.firebase.geofire.GeoFireUtils
@@ -16,6 +17,8 @@ import com.google.firebase.firestore.GeoPoint
 import com.google.firebase.firestore.Query
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.first
@@ -34,11 +37,41 @@ class FirestoreManager @Inject constructor(
     /** Bekleyen yazma sayısı — saveMeasurement'ta artırılır, senkron sonrası sıfırlanır */
     private var pendingWriteCount = 0
 
+    private val _measurementsFlow = MutableSharedFlow<List<SkyMeasurement>>(replay = 1)
+    val measurementsFlow: SharedFlow<List<SkyMeasurement>> = _measurementsFlow
+
+    private var measurementsListenerRegistered = false
+
     init {
         db.addSnapshotsInSyncListener {
             pendingWriteCount = 0
             networkMonitor.updatePendingCount(0)
         }
+        startMeasurementsListening()
+    }
+
+    private fun startMeasurementsListening() {
+        if (measurementsListenerRegistered) return
+        measurementsListenerRegistered = true
+        _measurementsFlow.tryEmit(emptyList())
+        collection
+            .orderBy("timestamp", Query.Direction.DESCENDING)
+            .limit(AppConstants.FIRESTORE_QUERY_LIMIT)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    Log.e("FIRESTORE", "Listen error: ${error.message}")
+                    _measurementsFlow.tryEmit(emptyList())
+                    return@addSnapshotListener
+                }
+                if (snapshot != null) {
+                    val source = if (snapshot.metadata.isFromCache) "CACHE" else "SERVER"
+                    Log.d("FIRESTORE", "Veri kaynağı: $source, ${snapshot.size()} ölçüm")
+                    val measurements = snapshot.documents.mapNotNull { doc ->
+                        documentToMeasurement(doc.id, doc.data)
+                    }
+                    _measurementsFlow.tryEmit(measurements)
+                }
+            }
     }
 
     private val measurementsCollection get() =
@@ -312,27 +345,63 @@ class FirestoreManager @Inject constructor(
 
     suspend fun saveMeasurement(measurement: SkyMeasurement): Result<String> { return try {
         val geohash = GeoHashUtil.encode(measurement.latitude, measurement.longitude)
-        val data = hashMapOf(
+        val orientation = mutableMapOf<String, Any>()
+        measurement.azimuth?.let { orientation["azimuth"] = it }
+        measurement.pitch?.let { orientation["pitch"] = it }
+        measurement.roll?.let { orientation["roll"] = it }
+        orientation["enabled"] = measurement.orientationEnabled
+
+        val data = hashMapOf<String, Any>(
             "sqm_value" to measurement.sqmValue,
             "bortle_class" to measurement.bortleClass,
             "location" to GeoPoint(measurement.latitude, measurement.longitude),
             "geohash" to geohash,
-            "altitude" to measurement.altitude,
-            "orientation" to hashMapOf(
-                "azimuth" to measurement.azimuth,
-                "pitch" to measurement.pitch,
-                "roll" to measurement.roll,
-                "enabled" to measurement.orientationEnabled
-            ),
+            "orientation" to orientation,
             "timestamp" to Timestamp.now(),
             "device_id" to measurement.deviceId,
-            "note" to measurement.note,
-            "session_id" to measurement.sessionId,
-            "session_name" to measurement.sessionName,
             "is_test" to measurement.isTest,
             "observer_uid" to measurement.observerUid.ifBlank { measurement.deviceId },
             "observer_name" to measurement.observerName
         )
+        measurement.altitude?.let { data["altitude"] = it }
+        measurement.note?.let { data["note"] = it }
+        measurement.sessionId?.let { data["session_id"] = it }
+        measurement.sessionName?.let { data["session_name"] = it }
+        // weather map
+        run {
+            val temp = measurement.temperature ?: measurement.weather?.temperature
+            val hum = measurement.humidity ?: measurement.weather?.humidity
+            val cloud = measurement.cloudCover ?: measurement.weather?.cloudCover
+            val wind = measurement.windSpeed ?: measurement.weather?.windSpeed
+            val vis = measurement.visibility ?: measurement.weather?.visibility
+            if (temp != null || hum != null || cloud != null || wind != null || vis != null) {
+                val weatherMap = mutableMapOf<String, Any>()
+                temp?.let { weatherMap["temperature"] = it }
+                hum?.let { weatherMap["humidity"] = it }
+                cloud?.let { weatherMap["cloud_cover"] = it }
+                wind?.let { weatherMap["wind_speed"] = it }
+                vis?.let { weatherMap["visibility"] = it }
+                if (weatherMap.isNotEmpty()) data["weather"] = weatherMap
+            }
+        }
+        // moon map
+        if (measurement.moonPhase != null || measurement.moonIllumination != null || measurement.moonEmoji != null) {
+            val moonMap = mutableMapOf<String, Any>()
+            measurement.moonPhase?.let { moonMap["phase"] = it }
+            measurement.moonIllumination?.let { moonMap["illumination"] = it }
+            measurement.moonEmoji?.let { moonMap["emoji"] = it }
+            if (moonMap.isNotEmpty()) data["moon"] = moonMap
+        }
+        // observing map
+        run {
+            val obsMap = mutableMapOf<String, Any>()
+            measurement.observingScore?.let { obsMap["score"] = it }
+            measurement.observingRating?.let { obsMap["rating"] = it }
+            obsMap["is_daytime"] = measurement.isDaytime
+            measurement.measurementTime?.let { obsMap["time"] = it }
+            data["observing"] = obsMap
+        }
+        data["is_test"] = measurement.isTest
 
         val docRef = collection.document()
         docRef.set(data)  // KRITIK: await KULLANMA — offline'da asılır, cache'e anında yazar
@@ -347,29 +416,10 @@ class FirestoreManager @Inject constructor(
     }
 
     suspend fun getMeasurementsOnce(): List<SkyMeasurement> =
-        getMeasurements().first()
+        measurementsFlow.first()
 
-    fun getMeasurements(): Flow<List<SkyMeasurement>> = callbackFlow {
-        val registration = collection
-            .orderBy("timestamp", Query.Direction.DESCENDING)
-            .limit(AppConstants.FIRESTORE_QUERY_LIMIT)
-            .addSnapshotListener { snapshot, error ->
-                if (error != null) {
-                    Log.e("FIRESTORE", "Listen error: ${error.message}")
-                    trySend(emptyList())
-                    return@addSnapshotListener
-                }
-                if (snapshot != null) {
-                    val source = if (snapshot.metadata.isFromCache) "CACHE" else "SERVER"
-                    Log.d("FIRESTORE", "Veri kaynağı: $source, ${snapshot.size()} ölçüm")
-                    val measurements = snapshot.documents.mapNotNull { doc ->
-                        documentToMeasurement(doc.id, doc.data)
-                    }
-                    trySend(measurements)
-                }
-            }
-        awaitClose { registration.remove() }
-    }
+    /** Tek listener, tüm ViewModel'lar aynı flow'dan okur */
+    fun getMeasurements(): Flow<List<SkyMeasurement>> = measurementsFlow
 
     fun getMeasurementsInRadius(
         centerLat: Double,
@@ -433,6 +483,35 @@ class FirestoreManager @Inject constructor(
 
         val deviceId = data["device_id"] as? String ?: ""
         val observerUid = data["observer_uid"] as? String ?: deviceId
+
+        val weatherMap = data["weather"] as? Map<*, *>
+        val moonMap = data["moon"] as? Map<*, *>
+        val observingMap = data["observing"] as? Map<*, *>
+
+        val temperature = (weatherMap?.get("temperature") as? Number)?.toDouble()
+        val humidity = (weatherMap?.get("humidity") as? Number)?.toInt()
+        val cloudCover = (weatherMap?.get("cloud_cover") as? Number)?.toInt()
+        val windSpeed = (weatherMap?.get("wind_speed") as? Number)?.toDouble()
+        val visibility = (weatherMap?.get("visibility") as? Number)?.toDouble()
+        val weather = if (temperature != null || humidity != null || cloudCover != null || windSpeed != null || visibility != null) {
+            WeatherData(
+                temperature = temperature,
+                humidity = humidity,
+                cloudCover = cloudCover,
+                windSpeed = windSpeed,
+                visibility = visibility
+            )
+        } else null
+
+        val moonPhase = (moonMap?.get("phase") as? String) ?: (data["moon_phase"] as? String)
+        val moonIllumination = (moonMap?.get("illumination") as? Number)?.toInt() ?: (data["moon_illumination"] as? Number)?.toInt()
+        val moonEmoji = moonMap?.get("emoji") as? String
+
+        val observingScore = (observingMap?.get("score") as? Number)?.toInt()
+        val observingRating = observingMap?.get("rating") as? String
+        val isDaytime = (observingMap?.get("is_daytime") as? Boolean) ?: (data["is_daytime"] as? Boolean) ?: false
+        val measurementTime = (observingMap?.get("time") as? String) ?: (data["measurement_time"] as? String)
+
         return SkyMeasurement(
             id = docId,
             sqmValue = (data["sqm_value"] as? Number)?.toDouble() ?: return null,
@@ -452,7 +531,20 @@ class FirestoreManager @Inject constructor(
             geohash = data["geohash"] as? String,
             isTest = data["is_test"] as? Boolean ?: false,
             observerUid = observerUid,
-            observerName = data["observer_name"] as? String ?: ""
+            observerName = data["observer_name"] as? String ?: "",
+            weather = weather,
+            temperature = temperature,
+            humidity = humidity,
+            cloudCover = cloudCover,
+            windSpeed = windSpeed,
+            visibility = visibility,
+            moonPhase = moonPhase,
+            moonIllumination = moonIllumination,
+            moonEmoji = moonEmoji,
+            observingScore = observingScore,
+            observingRating = observingRating,
+            isDaytime = isDaytime,
+            measurementTime = measurementTime
         )
     }
 }

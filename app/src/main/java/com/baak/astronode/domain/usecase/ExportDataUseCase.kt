@@ -27,19 +27,30 @@ class ExportDataUseCase @Inject constructor(
         val fileName = "measurements_${System.currentTimeMillis()}.csv"
         val file = File(context.cacheDir, fileName)
 
-        val header = "timestamp,sqm_value,bortle_class,latitude,longitude,altitude,azimuth,pitch,roll,note,session_id,session_name"
+        val header = "timestamp,time,sqm_value,bortle_class,lat,lng,altitude,azimuth,pitch,roll,temperature,humidity,cloud_cover,wind_speed,visibility,moon_phase,moon_illumination,observing_score,observing_rating,is_daytime,is_test,session_name,note"
         val lines = list.map { m ->
             val ts = dateFormat.format(Date(m.timestamp))
+            val time = m.measurementTime ?: ""
             val lat = m.latitude.toString()
             val lng = m.longitude.toString()
             val alt = m.altitude?.toString() ?: ""
             val az = m.azimuth?.toString() ?: ""
             val pitch = m.pitch?.toString() ?: ""
             val roll = m.roll?.toString() ?: ""
-            val note = (m.note ?: "").replace(",", ";").replace("\n", " ")
-            val sid = m.sessionId ?: ""
+            val temp = (m.temperature ?: m.weather?.temperature)?.toString() ?: ""
+            val hum = (m.humidity ?: m.weather?.humidity)?.toString() ?: ""
+            val cloud = (m.cloudCover ?: m.weather?.cloudCover)?.toString() ?: ""
+            val wind = (m.windSpeed ?: m.weather?.windSpeed)?.toString() ?: ""
+            val vis = (m.visibility ?: m.weather?.visibility)?.toString() ?: ""
+            val moonPhase = (m.moonPhase ?: "").replace(",", ";")
+            val moonIll = m.moonIllumination?.toString() ?: ""
+            val obsScore = m.observingScore?.toString() ?: ""
+            val obsRating = (m.observingRating ?: "").replace(",", ";")
+            val isDay = m.isDaytime
+            val isTest = m.isTest
             val sname = (m.sessionName ?: "").replace(",", ";").replace("\n", " ")
-            "$ts,${m.sqmValue},${m.bortleClass},$lat,$lng,$alt,$az,$pitch,$roll,$note,$sid,$sname"
+            val note = (m.note ?: "").replace(",", ";").replace("\n", " ")
+            "$ts,$time,${m.sqmValue},${m.bortleClass},$lat,$lng,$alt,$az,$pitch,$roll,$temp,$hum,$cloud,$wind,$vis,$moonPhase,$moonIll,$obsScore,$obsRating,$isDay,$isTest,$sname,$note"
         }
 
         file.writeText("$header\n${lines.joinToString("\n")}")
