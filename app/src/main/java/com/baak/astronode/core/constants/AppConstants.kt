@@ -23,6 +23,7 @@ object AppConstants {
     const val FIRESTORE_CACHE_SIZE_BYTES = 50L * 1024 * 1024  // 50MB
     const val FIRESTORE_COLLECTION_MEASUREMENTS = "measurements"
     const val FIRESTORE_COLLECTION_SESSIONS = "sessions"
+    const val FIRESTORE_COLLECTION_USERS = "users"
     const val FIRESTORE_QUERY_LIMIT = 500L
 
     // Haptic feedback
@@ -30,4 +31,7 @@ object AppConstants {
 
     // Migration
     const val PREF_MIGRATION_GEOHASH_DONE = "migration_geohash_done"
+
+    // Profile setup
+    const val PREF_PROFILE_SETUP_DONE = "profile_setup_done"
 }

@@ -1,5 +1,7 @@
 package com.baak.astronode.ui.screen.splash
 
+import com.google.firebase.auth.FirebaseAuth
+import kotlinx.coroutines.tasks.await
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.EaseOutBack
@@ -21,21 +23,18 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.graphics.Color
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.baak.astronode.R
 import kotlinx.coroutines.delay
 
-private val SplashBackground = Color(0xFF000000)
-private val AstroNodeRed = Color(0xFFE83E2E)
-private val VersionGray = Color(0xFF666666)
-
 @Composable
 fun SplashScreen(
     onNavigateToHome: () -> Unit
 ) {
+    val colorScheme = MaterialTheme.colorScheme
     var logoVisible by remember { mutableStateOf(false) }
     var textVisible by remember { mutableStateOf(false) }
 
@@ -56,6 +55,11 @@ fun SplashScreen(
     )
 
     LaunchedEffect(Unit) {
+        if (FirebaseAuth.getInstance().currentUser == null) {
+            try {
+                FirebaseAuth.getInstance().signInAnonymously().await()
+            } catch (_: Exception) { }
+        }
         logoVisible = true
         delay(200)
         textVisible = true
@@ -66,7 +70,7 @@ fun SplashScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(SplashBackground),
+            .background(colorScheme.background),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
@@ -80,18 +84,20 @@ fun SplashScreen(
         )
         Spacer(modifier = Modifier.height(24.dp))
         Text(
+            text = "BAAK BİLİM KULÜBÜ",
+            style = androidx.compose.material3.MaterialTheme.typography.titleMedium.copy(
+                fontWeight = FontWeight.SemiBold
+            ),
+            color = colorScheme.onSurfaceVariant,
+            modifier = Modifier.alpha(textAlpha)
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
             text = "AstroNode",
             style = androidx.compose.material3.MaterialTheme.typography.headlineMedium.copy(
                 fontWeight = FontWeight.Bold
             ),
-            color = AstroNodeRed,
-            modifier = Modifier.alpha(textAlpha)
-        )
-        Spacer(modifier = Modifier.height(24.dp))
-        Text(
-            text = "v1.0.0",
-            style = androidx.compose.material3.MaterialTheme.typography.labelSmall,
-            color = VersionGray,
+            color = colorScheme.primary,
             modifier = Modifier.alpha(textAlpha)
         )
     }

@@ -28,9 +28,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.luminance
@@ -47,7 +45,7 @@ fun SettingsScreen(
     onNavigateBack: () -> Unit,
     themePreference: ThemePreference = LocalThemePreference.current
 ) {
-    var selectedMode by remember { mutableStateOf(themePreference.getThemeMode()) }
+    val selectedMode by themePreference.themeModeFlow.collectAsStateWithLifecycle()
     val colorScheme = MaterialTheme.colorScheme
 
     Column(
@@ -99,7 +97,6 @@ fun SettingsScreen(
                             .padding(vertical = 4.dp)
                             .then(
                                 Modifier.clickable {
-                                    selectedMode = mode
                                     themePreference.setThemeMode(mode)
                                 }
                             ),
@@ -108,7 +105,6 @@ fun SettingsScreen(
                         RadioButton(
                             selected = selectedMode == mode,
                             onClick = {
-                                selectedMode = mode
                                 themePreference.setThemeMode(mode)
                             },
                             colors = RadioButtonDefaults.colors(

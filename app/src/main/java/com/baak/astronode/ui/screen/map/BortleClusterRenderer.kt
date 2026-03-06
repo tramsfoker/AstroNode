@@ -24,11 +24,18 @@ class BortleClusterRenderer(
     private val singleItemSize = 48
     private val clusterSize = 64
 
+    /** Test ölçümleri gri renkte gösterilir */
+    private val testMeasurementColor = 0xFF9E9E9E.toInt()
+
     override fun onBeforeClusterItemRendered(
         item: MeasurementClusterItem,
         markerOptions: com.google.android.gms.maps.model.MarkerOptions
     ) {
-        val color = BortleScale.toBortleColorInt(item.measurement.bortleClass)
+        val color = if (item.measurement.isTest) {
+            testMeasurementColor
+        } else {
+            BortleScale.toBortleColorInt(item.measurement.bortleClass)
+        }
         markerOptions.icon(createCircleBitmapDescriptor(color, singleItemSize))
         markerOptions.title("")  // Varsayılan InfoWindow yazısını kapat (tek noktada Card gösteriyoruz)
         markerOptions.snippet("")

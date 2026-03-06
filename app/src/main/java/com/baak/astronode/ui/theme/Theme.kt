@@ -13,19 +13,25 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsControllerCompat
 
 private val BaakDarkColorScheme = darkColorScheme(
-    primary = AstroPrimary,
-    onPrimary = AstroTextPrimary,
-    secondary = AstroSecondary,
-    onSecondary = AstroTextPrimary,
-    tertiary = AstroWarning,
-    background = AstroSurface,
-    surface = AstroSurface,
-    surfaceVariant = AstroCardBackground,
-    onBackground = AstroTextPrimary,
-    onSurface = AstroTextPrimary,
-    onSurfaceVariant = AstroTextSecondary,
-    error = AstroError,
-    onError = AstroTextPrimary
+    primary = Color(0xFFE83E2E),           // Kırmızı vurgu
+    onPrimary = Color(0xFF000000),         // SİYAH (kırmızı buton üstünde)
+    primaryContainer = Color(0xFF3D0000),  // Koyu kırmızı konteyner
+    onPrimaryContainer = Color(0xFFFF6B6B), // Açık kırmızı yazı koyu üstünde
+    secondary = Color(0xFF1A3A5C),         // Koyu mavi
+    onSecondary = Color(0xFFFFFFFF),       // Beyaz
+    background = Color(0xFF121212),        // Koyu arka plan
+    onBackground = Color(0xFFFF6B6B),      // Açık kırmızı yazı
+    surface = Color(0xFF1E1E1E),          // Kart arka planı
+    onSurface = Color(0xFFFF6B6B),         // Açık kırmızı yazı kart üstünde
+    surfaceVariant = Color(0xFF2A2A2A),   // Hafif açık kart
+    onSurfaceVariant = Color(0xFFCC8888),  // Soluk kırmızı ikincil yazı
+    tertiary = Color(0xFF665522),         // Uyarı rengi
+    onTertiary = Color(0xFF000000),
+    tertiaryContainer = Color(0xFF336633), // Başarı rengi
+    onTertiaryContainer = Color(0xFFCCFFCC),
+    error = Color(0xFFEF5350),
+    onError = Color(0xFF000000),           // Siyah
+    outline = Color(0xFF555555)
 )
 
 private val BaakLightColorScheme = lightColorScheme(
@@ -44,7 +50,9 @@ private val BaakLightColorScheme = lightColorScheme(
     error = Color(0xFFC62828),
     onError = Color(0xFFFFFFFF),
     outline = Color(0xFFBDBDBD),            // Kenarlıklar
-    tertiary = LightWarning
+    tertiary = Color(0xFFF57F17),
+    tertiaryContainer = Color(0xFF2E7D32),
+    onTertiaryContainer = Color(0xFFE8F5E9)
 )
 
 @Composable

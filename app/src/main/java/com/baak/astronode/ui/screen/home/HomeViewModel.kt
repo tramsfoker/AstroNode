@@ -8,8 +8,12 @@ import com.baak.astronode.data.sensor.LocationData
 import com.baak.astronode.data.sensor.LocationProvider
 import com.baak.astronode.data.sensor.OrientationData
 import com.baak.astronode.data.sensor.OrientationProvider
+import com.baak.astronode.core.constants.AppConstants
+import com.baak.astronode.data.firebase.FirebaseAuthManager
+import com.baak.astronode.data.firebase.UserManager
 import com.baak.astronode.data.session.SessionSelectionManager
 import com.baak.astronode.data.usb.SqmUsbManager
+import dagger.hilt.android.qualifiers.ApplicationContext
 import com.baak.astronode.data.usb.UsbConnectionState
 import com.baak.astronode.domain.usecase.TakeMeasurementUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -19,7 +23,11 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -43,10 +51,17 @@ class HomeViewModel @Inject constructor(
     private val locationProvider: LocationProvider,
     private val orientationProvider: OrientationProvider,
     private val sessionSelectionManager: SessionSelectionManager,
-    private val networkMonitor: NetworkMonitor
+    private val networkMonitor: NetworkMonitor,
+    private val userManager: UserManager,
+    private val firebaseAuthManager: FirebaseAuthManager,
+    @ApplicationContext private val context: android.content.Context
 ) : ViewModel() {
 
+    private val prefs = context.getSharedPreferences("astro_node_profile", android.content.Context.MODE_PRIVATE)
+
     private val _measurementState = MutableStateFlow(MeasurementUiState())
+    private val _needsProfileSetup = MutableStateFlow(false)
+    val needsProfileSetup: StateFlow<Boolean> = _needsProfileSetup.asStateFlow()
     private val _showSyncedBanner = MutableStateFlow(false)
 
     val connectionBannerState: StateFlow<ConnectionBannerState> = combine(
@@ -79,8 +94,18 @@ class HomeViewModel @Inject constructor(
     val selectedSession = sessionSelectionManager.selectedSession
     val measurementState: StateFlow<MeasurementUiState> = _measurementState.asStateFlow()
 
+    val userProfile: StateFlow<com.baak.astronode.core.model.UserProfile?> = flow {
+        val uid = try { firebaseAuthManager.ensureAnonymousAuth() } catch (_: Exception) { null }
+        emit(uid)
+    }.flatMapLatest { uid ->
+        if (uid != null) userManager.getUserProfile(uid) else flowOf(null as com.baak.astronode.core.model.UserProfile?)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
     private val _orientationEnabled = MutableStateFlow(true)
     val orientationEnabled: StateFlow<Boolean> = _orientationEnabled.asStateFlow()
+
+    private val _isTestMeasurement = MutableStateFlow(false)
+    val isTestMeasurement: StateFlow<Boolean> = _isTestMeasurement.asStateFlow()
 
     val usbConnectionState: StateFlow<UsbConnectionState> = sqmUsbManager.connectionState
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), UsbConnectionState.DISCONNECTED)
@@ -94,6 +119,15 @@ class HomeViewModel @Inject constructor(
     val connectedDriverName: String? get() = sqmUsbManager.connectedDriverName
 
     init {
+        viewModelScope.launch {
+            val setupDone = prefs.getBoolean(AppConstants.PREF_PROFILE_SETUP_DONE, false)
+            if (!setupDone) {
+                val uid = try { firebaseAuthManager.ensureAnonymousAuth() } catch (_: Exception) { return@launch }
+                val profile = userManager.getUserProfile(uid).first()
+                val displayNameBlank = profile?.displayName?.isBlank() != false
+                _needsProfileSetup.value = displayNameBlank
+            }
+        }
         sqmUsbManager.registerReceiver()
         try {
             sqmUsbManager.tryConnect()
@@ -110,6 +144,10 @@ class HomeViewModel @Inject constructor(
         else orientationProvider.stopListening()
     }
 
+    fun onTestMeasurementToggle(checked: Boolean) {
+        _isTestMeasurement.value = checked
+    }
+
     fun onMeasureClick(note: String?) {
         if (_measurementState.value.isLoading) return
 
@@ -121,7 +159,8 @@ class HomeViewModel @Inject constructor(
                 orientationEnabled = _orientationEnabled.value,
                 note = note,
                 sessionId = session?.id,
-                sessionName = session?.name
+                sessionName = session?.name,
+                isTest = _isTestMeasurement.value
             )
 
             _measurementState.value = result.fold(
@@ -137,6 +176,14 @@ class HomeViewModel @Inject constructor(
 
     fun clearError() {
         _measurementState.value = _measurementState.value.copy(error = null)
+    }
+
+    suspend fun completeProfileSetup(displayName: String) {
+        val uid = firebaseAuthManager.ensureAnonymousAuth()
+        userManager.ensureUserProfile(uid, displayName)
+        userManager.updateDisplayName(uid, displayName).onFailure { /* Firestore güncelleme */ }
+        prefs.edit().putBoolean(AppConstants.PREF_PROFILE_SETUP_DONE, true).apply()
+        _needsProfileSetup.value = false
     }
 
     override fun onCleared() {

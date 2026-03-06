@@ -22,10 +22,14 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Switch
@@ -33,6 +37,7 @@ import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -52,27 +57,34 @@ import com.baak.astronode.ui.component.MeasureButton
 import com.baak.astronode.ui.component.OrientationDisplay
 import com.baak.astronode.ui.component.SqmGauge
 import com.baak.astronode.ui.screen.home.ConnectionBannerState
-import com.baak.astronode.ui.theme.AstroSuccess
-import com.baak.astronode.ui.theme.AstroWarning
-import com.baak.astronode.ui.theme.LightSuccess
-import com.baak.astronode.ui.theme.LightWarning
 import com.baak.astronode.R
+import kotlinx.coroutines.launch
 
 @Composable
 fun HomeScreen(
     onNavigateToSession: () -> Unit,
-    onNavigateToSettings: () -> Unit = {},
+    onNavigateToProfile: () -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val measurementState by viewModel.measurementState.collectAsStateWithLifecycle()
+    val needsProfileSetup by viewModel.needsProfileSetup.collectAsStateWithLifecycle()
     val connectionBanner by viewModel.connectionBannerState.collectAsStateWithLifecycle()
     val usbState by viewModel.usbConnectionState.collectAsStateWithLifecycle()
     val locationData by viewModel.locationState.collectAsStateWithLifecycle()
     val orientationData by viewModel.orientationState.collectAsStateWithLifecycle()
     val orientationEnabled by viewModel.orientationEnabled.collectAsStateWithLifecycle()
+    val isTestMeasurement by viewModel.isTestMeasurement.collectAsStateWithLifecycle()
     val selectedSession by viewModel.selectedSession.collectAsStateWithLifecycle()
+    val userProfile by viewModel.userProfile.collectAsStateWithLifecycle()
 
     var noteText by rememberSaveable { mutableStateOf("") }
+    var nickname by remember { mutableStateOf("") }
+    val scope = rememberCoroutineScope()
+    LaunchedEffect(userProfile, needsProfileSetup) {
+        if (needsProfileSetup && nickname.isBlank()) {
+            nickname = userProfile?.displayName?.takeIf { it.isNotBlank() } ?: ""
+        }
+    }
 
     val context = LocalContext.current
     val activity = context as? androidx.activity.ComponentActivity
@@ -114,8 +126,9 @@ fun HomeScreen(
     ) {
         // Üst bar: logo + AstroNode + ayarlar
         val isDarkTheme = colorScheme.background.luminance() < 0.2f
-        val successColor = if (isDarkTheme) AstroSuccess else LightSuccess
-        val warningColor = if (isDarkTheme) AstroWarning else LightWarning
+        val successColor = colorScheme.tertiaryContainer
+        val successOnColor = colorScheme.onTertiaryContainer
+        val warningColor = colorScheme.tertiary
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
@@ -140,10 +153,10 @@ fun HomeScreen(
                     color = colorScheme.onSurface
                 )
             }
-            IconButton(onClick = onNavigateToSettings) {
+            IconButton(onClick = onNavigateToProfile) {
                 Icon(
-                    imageVector = Icons.Default.Settings,
-                    contentDescription = "Ayarlar",
+                    imageVector = Icons.Default.Person,
+                    contentDescription = "Profil",
                     tint = colorScheme.onSurface
                 )
             }
@@ -168,7 +181,7 @@ fun HomeScreen(
                     Text(
                         text = text,
                         style = MaterialTheme.typography.bodySmall,
-                        color = warningColor
+                        color = colorScheme.onSurface
                     )
                 }
             }
@@ -183,7 +196,7 @@ fun HomeScreen(
                     Text(
                         text = "✓ Senkronize edildi",
                         style = MaterialTheme.typography.bodySmall,
-                        color = successColor
+                        color = successOnColor
                     )
                 }
             }
@@ -204,6 +217,15 @@ fun HomeScreen(
                 color = colorScheme.onSurface
             )
         }
+        Text(
+            text = "👤 ${userProfile?.displayName?.takeIf { it.isNotBlank() } ?: "Misafir"} — ${when (userProfile?.role) {
+                "organizer" -> "Organizatör"
+                "super_admin" -> "Admin"
+                else -> "Gözlemci"
+            }}",
+            style = MaterialTheme.typography.bodySmall,
+            color = colorScheme.onSurfaceVariant
+        )
 
         // USB bağlantı rozeti
         ConnectionBadge(
@@ -311,6 +333,26 @@ fun HomeScreen(
             singleLine = true
         )
 
+        // Test ölçümü checkbox
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Checkbox(
+                checked = isTestMeasurement,
+                onCheckedChange = { viewModel.onTestMeasurementToggle(it) },
+                colors = CheckboxDefaults.colors(
+                    checkedColor = colorScheme.primary,
+                    uncheckedColor = colorScheme.outline
+                )
+            )
+            Text(
+                text = "Test ölçümü (haritada gösterilmez)",
+                style = MaterialTheme.typography.bodySmall,
+                color = colorScheme.onSurfaceVariant
+            )
+        }
+
         // Ölçüm butonu
         MeasureButton(
             isLoading = measurementState.isLoading,
@@ -365,5 +407,52 @@ fun HomeScreen(
                 }
             }
         }
+    }
+
+    if (needsProfileSetup) {
+        AlertDialog(
+            onDismissRequest = { },
+            title = { Text("Hoş geldiniz!", color = colorScheme.onSurface) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(
+                        "Takma adınızı girin:",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = colorScheme.onSurfaceVariant
+                    )
+                    OutlinedTextField(
+                        value = nickname,
+                        onValueChange = { nickname = it },
+                        label = { Text("Örn. Hakan Y.") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = colorScheme.primary,
+                            unfocusedBorderColor = colorScheme.outline,
+                            cursorColor = colorScheme.primary,
+                            focusedLabelColor = colorScheme.onSurfaceVariant,
+                            unfocusedLabelColor = colorScheme.outline,
+                            focusedTextColor = colorScheme.onSurface,
+                            unfocusedTextColor = colorScheme.onSurface
+                        )
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        if (nickname.trim().isNotBlank()) {
+                            scope.launch {
+                                viewModel.completeProfileSetup(nickname.trim())
+                            }
+                        }
+                    },
+                    enabled = nickname.trim().isNotBlank()
+                ) {
+                    Text("Devam Et")
+                }
+            },
+            containerColor = colorScheme.surface
+        )
     }
 }

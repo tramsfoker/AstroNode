@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">AstroNode</string>
+    <string name="default_web_client_id" translatable="false">562733677917-o2n934fdtueeugg83ntfrk2hoaa2rgpn.apps.googleusercontent.com</string>
 </resources>

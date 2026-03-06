@@ -10,5 +10,6 @@ data class Session(
     val organizerName: String = "Baak Bilim Kulübü",
     val participantCount: Int? = null,
     val createdBy: String = "",
-    val isActive: Boolean = true
+    val isActive: Boolean = true,
+    val status: String = "active"
 )

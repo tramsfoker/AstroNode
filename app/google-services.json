@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "562733677917",
+    "project_id": "astronode-50a6c",
+    "storage_bucket": "astronode-50a6c.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:562733677917:android:1da89a3d81b2dfb2f23cb4",
+        "android_client_info": {
+          "package_name": "com.baak.astronode"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "562733677917-rsukngpq1i6f5i6ju3f47ad46kvaf87j.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.baak.astronode",
+            "certificate_hash": "4a10804555c90a039ad3ffb6d0d6f1d50f271243"
+          }
+        },
+        {
+          "client_id": "562733677917-o2n934fdtueeugg83ntfrk2hoaa2rgpn.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA8zjfi1rrGBQCNlPHqcfD56tcfWgEDzCo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "562733677917-o2n934fdtueeugg83ntfrk2hoaa2rgpn.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

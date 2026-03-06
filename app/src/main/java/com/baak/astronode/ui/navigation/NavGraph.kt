@@ -5,6 +5,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.Science
@@ -26,10 +27,12 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.baak.astronode.ui.screen.analysis.AnalysisScreen
 import com.baak.astronode.ui.screen.history.HistoryScreen
 import com.baak.astronode.ui.screen.home.HomeScreen
 import com.baak.astronode.ui.screen.session.SessionScreen
 import com.baak.astronode.ui.screen.map.MapScreen
+import com.baak.astronode.ui.screen.profile.ProfileScreen
 import com.baak.astronode.ui.screen.settings.SettingsScreen
 import com.baak.astronode.ui.screen.splash.SplashScreen
 
@@ -38,9 +41,11 @@ object Routes {
     const val HOME = "home"
     const val MAP = "map"
     const val MAP_FOCUS = "map/{lat}/{lng}"
+    const val ANALYSIS = "analysis"
     const val HISTORY = "history"
     const val SESSION = "session"
     const val SETTINGS = "settings"
+    const val PROFILE = "profile"
 }
 
 @Composable
@@ -49,7 +54,7 @@ fun NavGraph() {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
-    val showBottomNav = currentRoute in listOf(Routes.HOME, Routes.MAP, Routes.HISTORY) ||
+    val showBottomNav = currentRoute in listOf(Routes.HOME, Routes.MAP, Routes.ANALYSIS, Routes.HISTORY) ||
         currentRoute?.startsWith(Routes.MAP) == true
 
     Scaffold(
@@ -67,13 +72,15 @@ fun NavGraph() {
                     listOf(
                         Triple(Routes.HOME, Icons.Default.Science, "Ölçüm"),
                         Triple(Routes.MAP, Icons.Default.Map, "Harita"),
+                        Triple(Routes.ANALYSIS, Icons.Default.BarChart, "Analiz"),
                         Triple(Routes.HISTORY, Icons.Default.History, "Geçmiş")
                     ).forEach { (route, icon, label) ->
                         NavigationBarItem(
                             icon = { Icon(icon, contentDescription = label) },
                             label = { Text(label) },
                             selected = currentRoute == route ||
-                                (route == Routes.MAP && currentRoute?.startsWith("map") == true),
+                                (route == Routes.MAP && currentRoute?.startsWith("map") == true) ||
+                                (route == Routes.ANALYSIS && currentRoute == Routes.ANALYSIS),
                             colors = NavigationBarItemDefaults.colors(
                                 selectedIconColor = MaterialTheme.colorScheme.primary,
                                 unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -115,8 +122,19 @@ fun NavGraph() {
                     onNavigateToSession = {
                         navController.navigate(Routes.SESSION)
                     },
-                    onNavigateToSettings = {
-                        navController.navigate(Routes.SETTINGS)
+                    onNavigateToProfile = {
+                        navController.navigate(Routes.PROFILE)
+                    }
+                )
+            }
+            composable(Routes.PROFILE) {
+                ProfileScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateToAnalysis = { sessionId ->
+                        navController.navigate(Routes.ANALYSIS) {
+                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                            launchSingleTop = true
+                        }
                     }
                 )
             }
@@ -127,6 +145,9 @@ fun NavGraph() {
             }
             composable(Routes.MAP) {
                 MapScreen()
+            }
+            composable(Routes.ANALYSIS) {
+                AnalysisScreen()
             }
             composable(
                 route = Routes.MAP_FOCUS,

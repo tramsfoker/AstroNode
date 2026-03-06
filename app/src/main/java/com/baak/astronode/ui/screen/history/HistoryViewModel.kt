@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.baak.astronode.core.model.Session
 import com.baak.astronode.core.model.SkyMeasurement
+import com.baak.astronode.data.firebase.FirebaseAuthManager
 import com.baak.astronode.data.firebase.FirestoreManager
 import com.baak.astronode.domain.usecase.ExportDataUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -59,8 +60,11 @@ private val dateFormatGroupKey = SimpleDateFormat("d MMMM yyyy", Locale.forLangu
 @HiltViewModel
 class HistoryViewModel @Inject constructor(
     private val firestoreManager: FirestoreManager,
+    private val firebaseAuthManager: FirebaseAuthManager,
     private val exportDataUseCase: ExportDataUseCase
 ) : ViewModel() {
+
+    val currentUid: String? get() = firebaseAuthManager.currentUid
 
     val measurements: StateFlow<List<SkyMeasurement>> = firestoreManager
         .getMeasurements()
@@ -142,6 +146,15 @@ class HistoryViewModel @Inject constructor(
 
     fun clearExportState() {
         _exportState.value = ExportState.Idle
+    }
+
+    fun deleteMeasurement(measurementId: String) {
+        viewModelScope.launch {
+            val uid = firebaseAuthManager.currentUid
+            if (uid != null) {
+                firestoreManager.deleteMeasurement(measurementId, uid)
+            }
+        }
     }
 
     private fun applyFilters(

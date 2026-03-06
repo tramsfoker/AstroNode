@@ -20,10 +20,13 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.automirrored.filled.Sort
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -34,7 +37,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -71,6 +76,8 @@ fun HistoryScreen(
     val measurements by viewModel.measurements.collectAsStateWithLifecycle()
     val groupedMeasurements by viewModel.groupedMeasurements.collectAsStateWithLifecycle()
     val filteredMeasurements by viewModel.filteredMeasurements.collectAsStateWithLifecycle()
+    val currentUid = viewModel.currentUid
+    var measurementToDelete by remember { mutableStateOf<SkyMeasurement?>(null) }
     val filterState by viewModel.filterState.collectAsStateWithLifecycle()
     val activeSessions by viewModel.activeSessions.collectAsStateWithLifecycle()
     val exportState by viewModel.exportState.collectAsStateWithLifecycle()
@@ -201,14 +208,59 @@ fun HistoryScreen(
                             ) { measurement ->
                                 MeasurementItem(
                                     measurement = measurement,
+                                    currentUid = currentUid,
                                     onClick = {
                                         navController.navigate("${Routes.MAP}/${measurement.latitude}/${measurement.longitude}")
-                                    }
+                                    },
+                                    onDeleteClick = { measurementToDelete = measurement }
                                 )
                             }
                         }
                     }
                 }
+            }
+
+            // Silme onay dialog'u
+            measurementToDelete?.let { m ->
+                AlertDialog(
+                    onDismissRequest = { measurementToDelete = null },
+                    title = { Text("Ölçümü Sil", color = colorScheme.onSurface) },
+                    text = {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text(
+                                "Bu ölçümü silmek istediğinize emin misiniz?",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                "MPSAS: ${String.format("%.2f", m.sqmValue)} | ${dateFormat.format(Date(m.timestamp))}",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = colorScheme.onSurface
+                            )
+                            Text(
+                                "Bu işlem geri alınamaz.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = colorScheme.onSurfaceVariant
+                            )
+                        }
+                    },
+                    confirmButton = {
+                        Button(
+                            onClick = {
+                                viewModel.deleteMeasurement(m.id)
+                                measurementToDelete = null
+                            }
+                        ) {
+                            Text("Sil")
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { measurementToDelete = null }) {
+                            Text("İptal")
+                        }
+                    },
+                    containerColor = colorScheme.surface
+                )
             }
 
             // Export hata mesajı
@@ -482,9 +534,12 @@ private fun DayHeaderCard(
 @Composable
 private fun MeasurementItem(
     measurement: SkyMeasurement,
-    onClick: () -> Unit
+    currentUid: String?,
+    onClick: () -> Unit,
+    onDeleteClick: () -> Unit
 ) {
     val colorScheme = MaterialTheme.colorScheme
+    val isOwnMeasurement = currentUid != null && measurement.observerUid == currentUid
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -515,6 +570,20 @@ private fun MeasurementItem(
                     color = colorScheme.onSurface,
                     modifier = Modifier.padding(start = 8.dp)
                 )
+                if (measurement.isTest) {
+                    Surface(
+                        modifier = Modifier.padding(start = 8.dp),
+                        shape = RoundedCornerShape(8.dp),
+                        color = colorScheme.surfaceVariant
+                    ) {
+                        Text(
+                            text = "🧪 TEST",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
+                }
                 Spacer(modifier = Modifier.weight(1f))
                 Text(
                     text = String.format("%.2f MPSAS", measurement.sqmValue),
@@ -527,6 +596,18 @@ private fun MeasurementItem(
                     color = colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(start = 8.dp)
                 )
+                if (isOwnMeasurement) {
+                    IconButton(
+                        onClick = { onDeleteClick() },
+                        modifier = Modifier.size(40.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Delete,
+                            contentDescription = "Sil",
+                            tint = colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
             }
             Text(
                 text = "📍 ${String.format("%.2f, %.2f", measurement.latitude, measurement.longitude)}",

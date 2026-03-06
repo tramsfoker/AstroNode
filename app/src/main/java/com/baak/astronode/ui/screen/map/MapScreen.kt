@@ -2,6 +2,7 @@ package com.baak.astronode.ui.screen.map
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -10,6 +11,8 @@ import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -63,6 +66,7 @@ fun MapScreen(
 ) {
     val context = LocalContext.current
     val measurements by viewModel.measurements.collectAsStateWithLifecycle()
+    val showTestMeasurements by viewModel.showTestMeasurements.collectAsStateWithLifecycle()
     val mapDataState by viewModel.mapDataState.collectAsStateWithLifecycle()
     val isOnline by viewModel.isOnline.collectAsStateWithLifecycle()
     val userLocation by viewModel.userLocation.collectAsStateWithLifecycle()
@@ -158,6 +162,39 @@ fun MapScreen(
                     manager.clearItems()
                     manager.addItems(measurements.map { MeasurementClusterItem(it) })
                     manager.cluster()
+                }
+            }
+        }
+
+        // Test ölçümlerini göster toggle
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(16.dp)
+        ) {
+            Card(
+                colors = CardDefaults.cardColors(containerColor = colorScheme.surfaceVariant),
+                modifier = Modifier.padding(horizontal = 8.dp)
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Test ölçümlerini göster",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = colorScheme.onSurfaceVariant
+                    )
+                    Switch(
+                        checked = showTestMeasurements,
+                        onCheckedChange = { viewModel.onShowTestMeasurementsToggle(it) },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = colorScheme.primary,
+                            checkedTrackColor = colorScheme.surfaceVariant,
+                            uncheckedThumbColor = colorScheme.outline,
+                            uncheckedTrackColor = colorScheme.surface
+                        )
+                    )
                 }
             }
         }

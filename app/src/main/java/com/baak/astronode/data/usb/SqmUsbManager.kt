@@ -13,6 +13,7 @@ import com.baak.astronode.core.constants.AppConstants
 import com.hoho.android.usbserial.driver.UsbSerialPort
 import com.hoho.android.usbserial.driver.UsbSerialProber
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -180,10 +181,16 @@ class SqmUsbManager @Inject constructor(
 
     suspend fun readMeasurement(): SqmReading? = withContext(Dispatchers.IO) {
         try {
-            val port = serialPort
+            var port = serialPort
             if (port == null) {
-                Log.e("SQM", "Port null - bağlantı yok")
-                return@withContext null
+                Log.e("SQM", "Port null - bağlantı yok, yeniden tarama deneniyor")
+                scanConnectedDevices()
+                delay(500)
+                port = serialPort
+                if (port == null) {
+                    Log.e("SQM", "Port hâlâ null")
+                    return@withContext null
+                }
             }
 
             // Önce buffer'ı temizle (eski veri kalmış olabilir)
@@ -191,6 +198,7 @@ class SqmUsbManager @Inject constructor(
             try {
                 port.read(flushBuffer, 100)
             } catch (_: Exception) {}
+            delay(200)
 
             // Komutu gönder
             val command = "rx\r".toByteArray(Charsets.US_ASCII)

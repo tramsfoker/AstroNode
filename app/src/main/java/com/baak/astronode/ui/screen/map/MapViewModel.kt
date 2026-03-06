@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.launchIn
@@ -54,7 +55,15 @@ class MapViewModel @Inject constructor(
     val mapDataState: StateFlow<MapDataState> = _mapDataState.asStateFlow()
 
     private val _measurements = MutableStateFlow<List<SkyMeasurement>>(emptyList())
-    val measurements: StateFlow<List<SkyMeasurement>> = _measurements.asStateFlow()
+    private val _showTestMeasurements = MutableStateFlow(false)
+    val showTestMeasurements: StateFlow<Boolean> = _showTestMeasurements.asStateFlow()
+
+    val measurements: StateFlow<List<SkyMeasurement>> = combine(
+        _measurements,
+        _showTestMeasurements
+    ) { list, showTest ->
+        if (showTest) list else list.filter { !it.isTest }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     private val _mapRegionUpdates = MutableSharedFlow<MapRegion>(replay = 0)
     private var fetchJob: Job? = null
@@ -76,6 +85,10 @@ class MapViewModel @Inject constructor(
                 MapRegion(TURKEY_CENTER_LAT, TURKEY_CENTER_LNG, 6f)
             )
         }
+    }
+
+    fun onShowTestMeasurementsToggle(show: Boolean) {
+        _showTestMeasurements.value = show
     }
 
     /** Harita kamera hareket ettiğinde çağrılır (debounce 500ms) */

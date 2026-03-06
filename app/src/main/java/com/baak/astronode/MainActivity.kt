@@ -13,6 +13,8 @@ import androidx.lifecycle.lifecycleScope
 import com.baak.astronode.core.util.ThemeMode
 import com.baak.astronode.core.util.ThemePreference
 import com.baak.astronode.data.migration.GeoHashMigration
+import com.google.firebase.auth.FirebaseAuth
+import kotlinx.coroutines.tasks.await
 import com.baak.astronode.ui.navigation.NavGraph
 import com.baak.astronode.ui.theme.AstroNodeTheme
 import com.baak.astronode.ui.theme.LocalThemePreference
@@ -36,6 +38,13 @@ class MainActivity : ComponentActivity() {
 
         lifecycleScope.launch(Dispatchers.IO) {
             geoHashMigration.runIfNeeded()
+        }
+        if (FirebaseAuth.getInstance().currentUser == null) {
+            lifecycleScope.launch(Dispatchers.IO) {
+                try {
+                    FirebaseAuth.getInstance().signInAnonymously().await()
+                } catch (_: Exception) { }
+            }
         }
 
         // USB cihaz bağlanınca açıldıysa SqmUsbManager scan yapacak (HomeViewModel init)

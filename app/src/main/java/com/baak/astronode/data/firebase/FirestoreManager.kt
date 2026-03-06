@@ -48,7 +48,7 @@ class FirestoreManager @Inject constructor(
 
     private val collection get() = measurementsCollection
 
-    suspend fun createSession(session: Session): Result<String> = try {
+    suspend fun createSession(session: Session): Result<String> { return try {
         val data = hashMapOf(
             "name" to session.name,
             "description" to session.description,
@@ -56,13 +56,15 @@ class FirestoreManager @Inject constructor(
             "organizer_name" to session.organizerName,
             "participant_count" to session.participantCount,
             "created_by" to session.createdBy,
-            "is_Active" to session.isActive
+            "is_Active" to session.isActive,
+            "status" to (session.status)
         )
         sessionsCollection.document(session.id).set(data)
         Log.d("FIRESTORE", "Session oluşturuldu (cache): ${session.id}")
         Result.success(session.id)
     } catch (e: Exception) {
         Result.failure(e)
+    }
     }
 
     fun getActiveSessions(): Flow<List<Session>> = callbackFlow {
@@ -105,11 +107,57 @@ class FirestoreManager @Inject constructor(
         awaitClose { registration.remove() }
     }
 
-    suspend fun endSession(sessionId: String): Result<Unit> = try {
-        sessionsCollection.document(sessionId).update("is_Active", false)
+    suspend fun endSession(sessionId: String): Result<Unit> { return try {
+        sessionsCollection.document(sessionId).update(
+            mapOf("is_Active" to false, "status" to "completed")
+        )
         Result.success(Unit)
     } catch (e: Exception) {
         Result.failure(e)
+    }
+    }
+
+    suspend fun cancelSession(sessionId: String): Result<Unit> { return try {
+        sessionsCollection.document(sessionId).update(
+            mapOf("is_Active" to false, "status" to "cancelled")
+        )
+        Result.success(Unit)
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
+    }
+
+    suspend fun getMeasurementCountBySession(sessionId: String): Int =
+        measurementsCollection
+            .whereEqualTo("session_id", sessionId)
+            .get()
+            .await()
+            .size()
+
+    suspend fun deleteSession(sessionId: String): Result<Unit> { return try {
+        sessionsCollection.document(sessionId).delete().await()
+        Result.success(Unit)
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
+    }
+
+    suspend fun deleteMeasurement(measurementId: String, currentUid: String): Result<Unit> {
+        return try {
+            val doc = measurementsCollection.document(measurementId).get().await()
+            if (!doc.exists()) {
+                return Result.failure(Exception("Ölçüm bulunamadı"))
+            }
+            val data = doc.data ?: emptyMap()
+            val ownerUid = data["observer_uid"] as? String ?: data["device_id"] as? String ?: ""
+            if (ownerUid != currentUid) {
+                return Result.failure(Exception("Sadece kendi ölçümünüzü silebilirsiniz"))
+            }
+            measurementsCollection.document(measurementId).delete().await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
     }
 
     private fun documentToSession(docId: String, data: Map<String, Any>?): Session? {
@@ -122,11 +170,12 @@ class FirestoreManager @Inject constructor(
             organizerName = data["organizer_name"] as? String ?: "Baak Bilim Kulübü",
             participantCount = (data["participant_count"] as? Number)?.toInt(),
             createdBy = data["created_by"] as? String ?: "",
-            isActive = data["is_Active"] as? Boolean ?: true
+            isActive = data["is_Active"] as? Boolean ?: true,
+            status = data["status"] as? String ?: "active"
         )
     }
 
-    suspend fun saveMeasurement(measurement: SkyMeasurement): Result<String> = try {
+    suspend fun saveMeasurement(measurement: SkyMeasurement): Result<String> { return try {
         val geohash = GeoHashUtil.encode(measurement.latitude, measurement.longitude)
         val data = hashMapOf(
             "sqm_value" to measurement.sqmValue,
@@ -144,7 +193,10 @@ class FirestoreManager @Inject constructor(
             "device_id" to measurement.deviceId,
             "note" to measurement.note,
             "session_id" to measurement.sessionId,
-            "session_name" to measurement.sessionName
+            "session_name" to measurement.sessionName,
+            "is_test" to measurement.isTest,
+            "observer_uid" to measurement.observerUid.ifBlank { measurement.deviceId },
+            "observer_name" to measurement.observerName
         )
 
         val docRef = collection.document()
@@ -156,6 +208,7 @@ class FirestoreManager @Inject constructor(
     } catch (e: Exception) {
         Log.e("FIRESTORE", "Kayıt hatası: ${e.message}")
         Result.failure(e)
+    }
     }
 
     suspend fun getMeasurementsOnce(): List<SkyMeasurement> =
@@ -243,6 +296,8 @@ class FirestoreManager @Inject constructor(
         val orientation = data["orientation"] as? Map<String, Any>
         val ts = data["timestamp"] as? Timestamp
 
+        val deviceId = data["device_id"] as? String ?: ""
+        val observerUid = data["observer_uid"] as? String ?: deviceId
         return SkyMeasurement(
             id = docId,
             sqmValue = (data["sqm_value"] as? Number)?.toDouble() ?: return null,
@@ -255,11 +310,14 @@ class FirestoreManager @Inject constructor(
             roll = (orientation?.get("roll") as? Number)?.toFloat(),
             orientationEnabled = orientation?.get("enabled") as? Boolean ?: false,
             timestamp = ts?.toDate()?.time ?: System.currentTimeMillis(),
-            deviceId = data["device_id"] as? String ?: "",
+            deviceId = deviceId,
             note = data["note"] as? String,
             sessionId = data["session_id"] as? String,
             sessionName = data["session_name"] as? String,
-            geohash = data["geohash"] as? String
+            geohash = data["geohash"] as? String,
+            isTest = data["is_test"] as? Boolean ?: false,
+            observerUid = observerUid,
+            observerName = data["observer_name"] as? String ?: ""
         )
     }
 }

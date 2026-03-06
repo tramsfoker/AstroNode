@@ -4,10 +4,13 @@ import com.baak.astronode.core.model.SkyMeasurement
 import com.baak.astronode.core.util.BortleScale
 import com.baak.astronode.data.firebase.FirebaseAuthManager
 import com.baak.astronode.data.firebase.FirestoreManager
+import com.baak.astronode.data.firebase.UserManager
 import com.baak.astronode.data.sensor.LocationProvider
 import com.baak.astronode.data.sensor.OrientationProvider
 import com.baak.astronode.data.usb.SqmUsbManager
+import com.baak.astronode.data.usb.UsbConnectionState
 import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeout
 import javax.inject.Inject
 
@@ -16,14 +19,19 @@ class TakeMeasurementUseCase @Inject constructor(
     private val locationProvider: LocationProvider,
     private val orientationProvider: OrientationProvider,
     private val firestoreManager: FirestoreManager,
-    private val firebaseAuthManager: FirebaseAuthManager
+    private val firebaseAuthManager: FirebaseAuthManager,
+    private val userManager: UserManager
 ) {
     suspend operator fun invoke(
         orientationEnabled: Boolean,
         note: String?,
         sessionId: String? = null,
-        sessionName: String? = null
-    ): Result<SkyMeasurement> = try {
+        sessionName: String? = null,
+        isTest: Boolean = false
+    ): Result<SkyMeasurement> { return try {
+        if (sqmUsbManager.connectionState.value != UsbConnectionState.CONNECTED) {
+            return Result.failure(Exception("SQM bağlı değil. USB cihazı bağlayıp izin verin."))
+        }
         withTimeout(15000L) {
             // a) SQM'den MPSAS oku
             val sqmReading = sqmUsbManager.readMeasurement()
@@ -48,6 +56,9 @@ class TakeMeasurementUseCase @Inject constructor(
                 return@withTimeout Result.failure(Exception("Kimlik doğrulama başarısız: ${e.message}"))
             }
 
+            // e2) Gözlemci adı (UserManager'dan)
+            val observerName = userManager.getUserProfile(uid).first()?.displayName?.takeIf { it.isNotBlank() } ?: ""
+
             // f) SkyMeasurement oluştur
             val measurement = SkyMeasurement(
                 sqmValue = sqmReading.mpsas,
@@ -62,7 +73,10 @@ class TakeMeasurementUseCase @Inject constructor(
                 deviceId = uid,
                 note = note?.takeIf { it.isNotBlank() },
                 sessionId = sessionId,
-                sessionName = sessionName
+                sessionName = sessionName,
+                isTest = isTest,
+                observerUid = uid,
+                observerName = observerName
             )
 
             // g) Firestore'a kaydet
@@ -80,5 +94,6 @@ class TakeMeasurementUseCase @Inject constructor(
         Result.failure(Exception("Ölçüm zaman aşımına uğradı"))
     } catch (e: Exception) {
         Result.failure(e)
+    }
     }
 }

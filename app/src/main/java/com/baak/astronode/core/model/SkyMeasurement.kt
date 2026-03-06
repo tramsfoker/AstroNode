@@ -18,5 +18,8 @@ data class SkyMeasurement(
     val note: String? = null,
     val sessionId: String? = null,
     val sessionName: String? = null,
-    val geohash: String? = null
+    val geohash: String? = null,
+    val isTest: Boolean = false,
+    val observerUid: String = "",
+    val observerName: String = ""
 )
