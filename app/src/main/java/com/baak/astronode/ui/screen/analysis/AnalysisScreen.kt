@@ -22,7 +22,11 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.Numbers
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -50,8 +54,10 @@ import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.baak.astronode.core.model.Session
@@ -103,7 +109,11 @@ fun AnalysisScreen(
 
         BortleDistributionCard(state = state)
 
-        TimeSeriesChart(state = state, colorScheme = colorScheme)
+        TimeSeriesChart(
+            state = state,
+            colorScheme = colorScheme,
+            onTimeRange = { viewModel.setTimeRange(it) }
+        )
 
         state.sessionStats.firstOrNull()?.let { sessionStat ->
             SessionComparisonCard(
@@ -379,54 +389,85 @@ private fun MeasurementSummaryCard(state: AnalysisState) {
                     color = colorScheme.onSurfaceVariant
                 )
             } else {
-                Text(
-                    text = "${state.totalMeasurements} ölçüm • ${state.uniqueDays} farklı gün",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = colorScheme.onSurfaceVariant
-                )
-                Spacer(modifier = Modifier.height(16.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Column(horizontalAlignment = Alignment.Start) {
-                        Text("En İyi:", style = MaterialTheme.typography.labelMedium, color = colorScheme.onSurfaceVariant)
-                        Text(
-                            text = "${String.format("%.2f", state.bestMpsas)} MPSAS (B${state.bestBortleClass}) 🌟",
-                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                            color = BortleScale.toBortleColor(state.bestBortleClass)
-                        )
-                    }
+                    SummaryCard(
+                        modifier = Modifier.weight(1f),
+                        icon = Icons.Filled.Star,
+                        value = "${String.format("%.2f", state.bestMpsas)}",
+                        description = "En İyi (B${state.bestBortleClass})",
+                        valueColor = BortleScale.toBortleColor(state.bestBortleClass)
+                    )
+                    SummaryCard(
+                        modifier = Modifier.weight(1f),
+                        icon = Icons.Filled.BarChart,
+                        value = "${String.format("%.1f", state.averageMpsas)}",
+                        description = "Ortalama",
+                        valueColor = colorScheme.primary
+                    )
                 }
                 Spacer(modifier = Modifier.height(8.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Column(horizontalAlignment = Alignment.Start) {
-                        Text("Ortalama:", style = MaterialTheme.typography.labelMedium, color = colorScheme.onSurfaceVariant)
-                        Text(
-                            text = "${String.format("%.1f", state.averageMpsas)} MPSAS (B${BortleScale.toBortleClass(state.averageMpsas)})",
-                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                            color = colorScheme.onSurface
-                        )
-                    }
-                }
-                Spacer(modifier = Modifier.height(8.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Column(horizontalAlignment = Alignment.Start) {
-                        Text("En Kötü:", style = MaterialTheme.typography.labelMedium, color = colorScheme.onSurfaceVariant)
-                        Text(
-                            text = "${String.format("%.2f", state.worstMpsas)} MPSAS (B${state.worstBortleClass})",
-                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                            color = BortleScale.toBortleColor(state.worstBortleClass)
-                        )
-                    }
+                    SummaryCard(
+                        modifier = Modifier.weight(1f),
+                        icon = Icons.Filled.Warning,
+                        value = "${String.format("%.2f", state.worstMpsas)}",
+                        description = "En Kötü (B${state.worstBortleClass})",
+                        valueColor = BortleScale.toBortleColor(state.worstBortleClass)
+                    )
+                    SummaryCard(
+                        modifier = Modifier.weight(1f),
+                        icon = Icons.Filled.Numbers,
+                        value = "${state.totalMeasurements}",
+                        description = "Toplam ölçüm",
+                        valueColor = colorScheme.primary
+                    )
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun SummaryCard(
+    modifier: Modifier = Modifier,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    value: String,
+    description: String,
+    valueColor: Color
+) {
+    val colorScheme = MaterialTheme.colorScheme
+    Card(
+        modifier = modifier,
+        colors = CardDefaults.cardColors(containerColor = colorScheme.surfaceVariant.copy(alpha = 0.5f)),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = valueColor,
+                modifier = Modifier.size(24.dp)
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = value,
+                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                color = valueColor
+            )
+            Text(
+                text = description,
+                style = MaterialTheme.typography.bodySmall,
+                color = colorScheme.onSurfaceVariant
+            )
         }
     }
 }
@@ -461,12 +502,15 @@ private fun BortleDistributionCard(state: AnalysisState) {
                 )
             } else {
                 listOf(
-                    Triple("B1-3", Color(0xFF003399), "Mükemmel karanlık"),
-                    Triple("B4-6", Color(0xFF669900), "Orta düzey"),
-                    Triple("B7-9", Color(0xFFCC3300), "Işık kirliliği yüksek")
+                    Triple("B1-3", BortleScale.toBortleColor(2), "Mükemmel karanlık"),
+                    Triple("B4-6", BortleScale.toBortleColor(5), "Orta düzey"),
+                    Triple("B7-9", BortleScale.toBortleColor(8), "Işık kirliliği yüksek")
                 ).forEach { (label, barColor, desc) ->
                     val count = grouped[label] ?: 0
-                    val pct = (count * 100 / total)
+                    val pct = if (total > 0) (count * 100 / total) else 0
+                    val fraction = if (total > 0) (count.toFloat() / total).coerceIn(0f, 1f) else 0f
+                    val minFraction = 4f / 300f
+                    val filledFraction = if (count > 0) maxOf(fraction, minFraction) else 0f
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -483,21 +527,26 @@ private fun BortleDistributionCard(state: AnalysisState) {
                         Box(
                             modifier = Modifier
                                 .weight(1f)
-                                .height(20.dp)
+                                .height(28.dp)
                                 .background(colorScheme.surfaceVariant, RoundedCornerShape(4.dp))
                         ) {
-                            Box(
+                            if (filledFraction > 0f) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxHeight()
+                                        .fillMaxWidth(filledFraction)
+                                        .background(barColor, RoundedCornerShape(4.dp))
+                                )
+                            }
+                            Text(
+                                text = "$count (%$pct)",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = colorScheme.onSurfaceVariant,
                                 modifier = Modifier
-                                    .fillMaxHeight()
-                                    .fillMaxWidth(count.toFloat() / maxGroup)
-                                    .background(barColor, RoundedCornerShape(4.dp))
+                                    .align(Alignment.CenterEnd)
+                                    .padding(end = 8.dp)
                             )
                         }
-                        Text(
-                            text = "$count (%$pct)",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = colorScheme.onSurfaceVariant
-                        )
                     }
                 }
             }
@@ -506,9 +555,17 @@ private fun BortleDistributionCard(state: AnalysisState) {
 }
 
 @Composable
-private fun TimeSeriesChart(state: AnalysisState, colorScheme: androidx.compose.material3.ColorScheme) {
+private fun TimeSeriesChart(
+    state: AnalysisState,
+    colorScheme: androidx.compose.material3.ColorScheme,
+    onTimeRange: (TimeRange) -> Unit
+) {
     val data = state.timeSeriesData
-    var selectedPoint by remember { mutableStateOf<TimeSeriesPoint?>(null) }
+    val density = LocalDensity.current
+    val radiusPx = with(density) { 8.dp.toPx() }
+    val onSurfaceVariant = colorScheme.onSurfaceVariant
+    val gridColor = colorScheme.onSurfaceVariant.copy(alpha = 0.2f)
+    val lineColor = colorScheme.primary.copy(alpha = 0.4f)
 
     Card(
         modifier = Modifier
@@ -518,24 +575,25 @@ private fun TimeSeriesChart(state: AnalysisState, colorScheme: androidx.compose.
         shape = RoundedCornerShape(16.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
-        Column(modifier = Modifier.padding(20.dp)) {
+        Column(modifier = Modifier.padding(16.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = "MPSAS",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = colorScheme.onSurfaceVariant
-                )
-                Text(
-                    text = state.selectedTimeRange.label,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = colorScheme.onSurface
-                )
+                TimeRange.entries.forEach { range ->
+                    FilterChip(
+                        label = when (range) {
+                            TimeRange.LAST_7_DAYS -> "7 Gün"
+                            TimeRange.LAST_30_DAYS -> "30 Gün"
+                            TimeRange.ALL_TIME -> "Tümü"
+                        },
+                        selected = state.selectedTimeRange == range,
+                        onClick = { onTimeRange(range) }
+                    )
+                }
             }
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(16.dp))
             if (data.isEmpty()) {
                 Box(
                     modifier = Modifier
@@ -544,150 +602,127 @@ private fun TimeSeriesChart(state: AnalysisState, colorScheme: androidx.compose.
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "Bu dönemde ölçüm yok",
+                        text = "Bu dönemde ölçüm bulunmuyor",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = colorScheme.onSurfaceVariant
+                        color = onSurfaceVariant
                     )
                 }
             } else {
-                val minY = 10.0
-                val maxY = 22.0
-                val rangeY = maxY - minY
-                val yTicks = listOf(10, 14, 18, 22)
-                val padLeft = 36f
-                val padRight = 24f
-                val padTop = 8f
-                val padBottom = 36f
-                val chartW = 400f
-                val chartH = 180f
+                val yMin = 8f
+                val yMax = 24f
+                val ySteps = listOf(8f, 12f, 16f, 20f, 24f)
                 val uniqueDays = data.map { it.timestamp / (24 * 60 * 60 * 1000) }.toSet().size
                 val showTimeLabels = uniqueDays == 1
-                var chartWidthPx by remember { mutableStateOf(300f) }
 
                 Row(modifier = Modifier.fillMaxWidth()) {
                     Column(
-                        modifier = Modifier.width(36.dp),
-                        verticalArrangement = Arrangement.SpaceBetween
+                        modifier = Modifier
+                            .width(48.dp)
+                            .height(220.dp)
                     ) {
-                        yTicks.reversed().forEach { tick ->
-                            Text(
-                                text = "$tick",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = colorScheme.onSurfaceVariant
-                            )
+                        Text(
+                            text = "MPSAS",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Column(
+                            modifier = Modifier
+                                .height(172.dp)
+                                .fillMaxWidth(),
+                            verticalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            listOf("24", "20", "16", "12", "8").forEach { label ->
+                                Text(
+                                    text = label,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontSize = 10.sp,
+                                    color = onSurfaceVariant
+                                )
+                            }
                         }
+                        Spacer(modifier = Modifier.height(32.dp))
                     }
-                    Box(
+                    Column(
                         modifier = Modifier
                             .weight(1f)
                             .height(220.dp)
-                            .onSizeChanged { chartWidthPx = it.width.toFloat() }
-                            .pointerInput(data.size, chartWidthPx) {
-                                detectTapGestures { offset ->
-                                    val divisor = (data.size - 1).coerceAtLeast(1)
-                                    val chartWidth = chartWidthPx - padLeft - padRight
-                                    if (chartWidth <= 0) return@detectTapGestures
-                                    val nearest = data.minByOrNull { pt ->
-                                        val i = data.indexOf(pt)
-                                        val x = padLeft + (i.toFloat() / divisor) * chartWidth
-                                        kotlin.math.abs(offset.x - x)
-                                    }
-                                    selectedPoint = if (nearest != null) {
-                                        val i = data.indexOf(nearest)
-                                        val x = padLeft + (i.toFloat() / divisor) * chartWidth
-                                        if (kotlin.math.abs(offset.x - x) < 30) nearest else null
-                                    } else null
-                                }
-                            }
+                            .padding(start = 8.dp)
                     ) {
                         Canvas(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .fillMaxHeight()
+                                .padding(start = 0.dp, top = 16.dp, end = 16.dp, bottom = 32.dp)
                         ) {
-                            val w = size.width
-                            val h = size.height
-                            val chartWidth = w - padLeft - padRight
-                            val chartHeight = h - padTop - padBottom
-                            val divisor = (data.size - 1).coerceAtLeast(1)
+                            val width = size.width
+                            val height = size.height
 
-                            yTicks.forEach { tick ->
-                                val y = (padTop + chartHeight - (tick - minY) / rangeY * chartHeight).toFloat()
+                            ySteps.forEach { value ->
+                                val y = height - ((value - yMin) / (yMax - yMin) * height)
                                 drawLine(
-                                    color = colorScheme.outline.copy(alpha = 0.2f),
-                                    start = Offset(padLeft, y),
-                                    end = Offset(w - padRight, y),
+                                    color = gridColor,
+                                    start = Offset(0f, y),
+                                    end = Offset(width, y),
                                     strokeWidth = 1f,
-                                    pathEffect = PathEffect.dashPathEffect(floatArrayOf(8f, 4f))
+                                    pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 10f))
                                 )
                             }
 
-                            data.forEachIndexed { i, pt ->
-                                val x = padLeft + (i.toFloat() / divisor) * chartWidth
-                                val y = (padTop + chartHeight - ((pt.mpsas - minY) / rangeY * chartHeight)).toFloat()
-                                drawCircle(
-                                    color = BortleScale.toBortleColor(pt.bortleClass),
-                                    radius = 10f,
-                                    center = Offset(x, y)
-                                )
-                                if (i > 0) {
-                                    val prevX = padLeft + ((i - 1).toFloat() / divisor) * chartWidth
-                                    val prevY = (padTop + chartHeight - ((data[i - 1].mpsas - minY) / rangeY * chartHeight)).toFloat()
-                                    drawLine(
-                                        color = colorScheme.outline.copy(alpha = 0.5f),
-                                        start = Offset(prevX, prevY),
-                                        end = Offset(x, y),
-                                        strokeWidth = 2f,
-                                        cap = StrokeCap.Round
+                            if (data.isNotEmpty()) {
+                                val xStep = width / (data.size - 1).coerceAtLeast(1)
+                                data.forEachIndexed { i, point ->
+                                    val x = i * xStep
+                                    val y = height - ((point.mpsas.toFloat() - yMin) / (yMax - yMin) * height)
+
+                                    if (i > 0) {
+                                        val prevX = (i - 1) * xStep
+                                        val prevY = height - ((data[i - 1].mpsas.toFloat() - yMin) / (yMax - yMin) * height)
+                                        drawLine(
+                                            color = lineColor,
+                                            start = Offset(prevX, prevY),
+                                            end = Offset(x, y),
+                                            strokeWidth = 2f,
+                                            pathEffect = null
+                                        )
+                                    }
+                                    drawCircle(
+                                        color = BortleScale.toBortleColor(point.bortleClass),
+                                        radius = radiusPx,
+                                        center = Offset(x, y)
                                     )
                                 }
                             }
                         }
+                        val xLabelIndices = if (data.size <= 5) {
+                            data.indices.toList()
+                        } else {
+                            val step = (data.size - 1) / 4
+                            listOf(0, step, step * 2, step * 3, data.size - 1).distinct()
+                        }
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 4.dp, start = 0.dp, end = 16.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            xLabelIndices.forEach { idx ->
+                                val pt = data.getOrNull(idx) ?: return@forEach
+                                Text(
+                                    text = if (showTimeLabels) {
+                                        timeFormat.format(Date(pt.timestamp))
+                                    } else {
+                                        shortDateFormat.format(Date(pt.timestamp))
+                                    },
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontSize = 10.sp,
+                                    color = onSurfaceVariant,
+                                    modifier = Modifier
+                                )
+                            }
+                        }
                     }
                 }
-
-                val xLabels = if (showTimeLabels) {
-                    val step = (data.size / 4).coerceAtLeast(1)
-                    listOf(0, step, step * 2, step * 3, data.size - 1).distinct().map { data[it.coerceIn(0, data.size - 1)] }
-                } else {
-                    val days = data.map { it.timestamp / (24 * 60 * 60 * 1000) }.distinct().sorted()
-                    days.take(5).map { day -> data.first { it.timestamp / (24 * 60 * 60 * 1000) == day } }
-                }
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(start = 36.dp, top = 4.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    xLabels.forEach { pt ->
-                        Text(
-                            text = if (showTimeLabels) timeFormat.format(Date(pt.timestamp)) else shortDateFormat.format(Date(pt.timestamp)),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-
-                selectedPoint?.let { pt ->
-                    Text(
-                        text = "${timeFormat.format(Date(pt.timestamp))} — ${String.format("%.1f", pt.mpsas)} MPSAS (Bortle ${pt.bortleClass})",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = colorScheme.onSurface,
-                        modifier = Modifier.padding(top = 8.dp)
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(12.dp))
-                Text(
-                    text = "⬆ Yukarı = daha karanlık = daha iyi",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = colorScheme.onSurfaceVariant
-                )
-                Text(
-                    text = "Noktalar Bortle rengine göre renklendi",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = colorScheme.onSurfaceVariant
-                )
             }
         }
     }
