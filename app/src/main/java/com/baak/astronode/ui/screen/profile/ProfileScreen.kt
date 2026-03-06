@@ -36,6 +36,10 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.RadioButtonDefaults
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -109,6 +113,17 @@ fun ProfileScreen(
         editName = profile?.displayName ?: ""
     }
 
+    val snackbarHostState = remember { SnackbarHostState() }
+    LaunchedEffect(profileError) {
+        profileError?.let { msg ->
+            snackbarHostState.showSnackbar(
+                message = msg,
+                duration = SnackbarDuration.Short
+            )
+            viewModel.clearError()
+        }
+    }
+
     LaunchedEffect(exportUri) {
         exportUri?.let { uri ->
             val shareIntent = Intent(Intent.ACTION_SEND).apply {
@@ -121,11 +136,9 @@ fun ProfileScreen(
         }
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(colorScheme.background)
-    ) {
+    Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        topBar = {
         TopAppBar(
             title = { Text("Hesabım", color = colorScheme.onSurface) },
             navigationIcon = {
@@ -142,10 +155,13 @@ fun ProfileScreen(
                 titleContentColor = colorScheme.onSurface
             )
         )
-
+        }
+    ) { padding ->
         Column(
             modifier = Modifier
+                .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
+                .padding(padding)
                 .padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
@@ -163,15 +179,6 @@ fun ProfileScreen(
                     googleSignInLauncher.launch(viewModel.googleSignInClient.signInIntent)
                 }
             )
-
-            profileError?.let { msg ->
-                Text(
-                    text = msg,
-                    color = colorScheme.error,
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.clickable { viewModel.clearError() }
-                )
-            }
 
             // B) İstatistikler 2x2 grid
             StatsGrid(profile = profile, sessions = sessions)

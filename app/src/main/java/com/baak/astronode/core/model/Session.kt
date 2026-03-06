@@ -11,5 +11,8 @@ data class Session(
     val participantCount: Int? = null,
     val createdBy: String = "",
     val isActive: Boolean = true,
-    val status: String = "active"
+    val status: String = "active",
+    val type: String = "public",  // "public" | "private" | "invite_only"
+    val participantIds: List<String> = emptyList(),
+    val code: String = ""
 )

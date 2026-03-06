@@ -10,6 +10,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
@@ -69,8 +73,30 @@ fun MapScreen(
     val showTestMeasurements by viewModel.showTestMeasurements.collectAsStateWithLifecycle()
     val mapDataState by viewModel.mapDataState.collectAsStateWithLifecycle()
     val isOnline by viewModel.isOnline.collectAsStateWithLifecycle()
+    var showOfflineBanner by remember { mutableStateOf(false) }
+
+    LaunchedEffect(isOnline, mapDataState) {
+        if (isOnline || mapDataState is MapDataState.Success) {
+            showOfflineBanner = false
+        } else if (!isOnline) {
+            kotlinx.coroutines.delay(3000)
+            if (!isOnline) showOfflineBanner = true
+        }
+    }
     val userLocation by viewModel.userLocation.collectAsStateWithLifecycle()
+    val mapError by viewModel.error.collectAsStateWithLifecycle()
     var selectedMeasurement by remember { mutableStateOf<SkyMeasurement?>(null) }
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(mapError) {
+        mapError?.let { msg ->
+            snackbarHostState.showSnackbar(
+                message = msg,
+                duration = SnackbarDuration.Short
+            )
+            viewModel.clearError()
+        }
+    }
 
     val cameraPositionState = rememberCameraPositionState {
         val (lat, lng) = when {
@@ -131,9 +157,13 @@ fun MapScreen(
     var clusterManager by remember { mutableStateOf<ClusterManager<MeasurementClusterItem>?>(null) }
 
     val colorScheme = MaterialTheme.colorScheme
+    Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) }
+    ) { padding ->
     Box(
         modifier = Modifier
             .fillMaxSize()
+            .padding(padding)
             .background(colorScheme.surface)
     ) {
         GoogleMap(
@@ -199,8 +229,8 @@ fun MapScreen(
             }
         }
 
-        // Offline harita uyarısı — tile'lar yüklenmez, ölçüm noktaları cache'ten gösterilir
-        if (!isOnline) {
+        // Offline harita uyarısı — sadece gerçekten offline ise (3 sn delay + harita yüklendiyse gizle)
+        if (showOfflineBanner) {
             Box(
                 modifier = Modifier
                     .align(Alignment.TopCenter)
@@ -233,19 +263,7 @@ fun MapScreen(
                     )
                 }
             }
-            is MapDataState.Error -> {
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.TopCenter)
-                        .padding(16.dp)
-                ) {
-                    Text(
-                        text = state.message,
-                        color = colorScheme.onSurfaceVariant,
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                }
-            }
+            is MapDataState.Error -> { /* Snackbar ile gösteriliyor */ }
             else -> {}
         }
 
@@ -295,5 +313,6 @@ fun MapScreen(
                 )
             }
         }
+    }
     }
 }

@@ -32,6 +32,11 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Snackbar
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -115,14 +120,30 @@ fun HomeScreen(
     }
 
     val colorScheme = MaterialTheme.colorScheme
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(measurementState.error) {
+        measurementState.error?.let { msg ->
+            snackbarHostState.showSnackbar(
+                message = msg,
+                duration = SnackbarDuration.Short
+            )
+            viewModel.clearError()
+        }
+    }
+
+    Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) }
+    ) { padding ->
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(colorScheme.surface)
             .verticalScroll(rememberScrollState())
+            .padding(padding)
             .padding(horizontal = 20.dp, vertical = 16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         // Üst bar: logo + AstroNode + ayarlar
         val isDarkTheme = colorScheme.background.luminance() < 0.2f
@@ -233,15 +254,11 @@ fun HomeScreen(
             driverName = viewModel.connectedDriverName
         )
 
-        Spacer(modifier = Modifier.height(8.dp))
-
         // SQM göstergesi
         SqmGauge(
             mpsas = measurementState.lastMeasurement?.sqmValue,
             bortleClass = measurementState.lastMeasurement?.bortleClass
         )
-
-        Spacer(modifier = Modifier.height(8.dp))
 
         // Oryantasyon verileri
         if (orientationEnabled) {
@@ -314,30 +331,29 @@ fun HomeScreen(
             }
         }
 
-        // Not alanı
-        OutlinedTextField(
-            value = noteText,
-            onValueChange = { noteText = it },
-            label = { Text("Not ekle... (opsiyonel)") },
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(12.dp),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = colorScheme.primary,
-                unfocusedBorderColor = colorScheme.outline,
-                cursorColor = colorScheme.primary,
-                focusedLabelColor = colorScheme.onSurfaceVariant,
-                unfocusedLabelColor = colorScheme.outline,
-                focusedTextColor = colorScheme.onSurface,
-                unfocusedTextColor = colorScheme.onSurface
-            ),
-            singleLine = true
-        )
-
-        // Test ölçümü checkbox
+        // Not alanı + Test checkbox (yan yana, kompakt)
         Row(
             modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
+            OutlinedTextField(
+                value = noteText,
+                onValueChange = { noteText = it },
+                label = { Text("Not ekle... (opsiyonel)") },
+                modifier = Modifier.weight(1f),
+                shape = RoundedCornerShape(12.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = colorScheme.primary,
+                    unfocusedBorderColor = colorScheme.outline,
+                    cursorColor = colorScheme.primary,
+                    focusedLabelColor = colorScheme.onSurfaceVariant,
+                    unfocusedLabelColor = colorScheme.outline,
+                    focusedTextColor = colorScheme.onSurface,
+                    unfocusedTextColor = colorScheme.onSurface
+                ),
+                singleLine = true
+            )
             Checkbox(
                 checked = isTestMeasurement,
                 onCheckedChange = { viewModel.onTestMeasurementToggle(it) },
@@ -347,7 +363,7 @@ fun HomeScreen(
                 )
             )
             Text(
-                text = "Test ölçümü (haritada gösterilmez)",
+                text = "Test ölçümü",
                 style = MaterialTheme.typography.bodySmall,
                 color = colorScheme.onSurfaceVariant
             )
@@ -360,19 +376,6 @@ fun HomeScreen(
                 viewModel.onMeasureClick(noteText.takeIf { it.isNotBlank() })
             }
         )
-
-        // Hata mesajı
-        measurementState.error?.let { errorMsg ->
-            Text(
-                text = errorMsg,
-                style = MaterialTheme.typography.bodyMedium,
-                color = colorScheme.error,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(colorScheme.error.copy(alpha = 0.15f), RoundedCornerShape(8.dp))
-                    .padding(12.dp)
-            )
-        }
 
         // Başarılı ölçüm bilgisi
         measurementState.lastMeasurement?.let { m ->
@@ -407,6 +410,7 @@ fun HomeScreen(
                 }
             }
         }
+    }
     }
 
     if (needsProfileSetup) {

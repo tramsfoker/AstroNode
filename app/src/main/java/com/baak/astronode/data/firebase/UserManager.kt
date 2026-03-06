@@ -6,6 +6,7 @@ import com.baak.astronode.core.model.UserProfile
 import com.baak.astronode.core.model.UserSettings
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
+import com.google.firebase.firestore.SetOptions
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -31,8 +32,9 @@ class UserManager @Inject constructor(
             if (doc.exists()) {
                 val data = doc.data ?: emptyMap()
                 val profile = mapToUserProfile(uid, data)
-                usersCollection.document(uid).update(
-                    mapOf("last_active_at" to System.currentTimeMillis())
+                usersCollection.document(uid).set(
+                    mapOf("last_active_at" to System.currentTimeMillis()),
+                    SetOptions.merge()
                 ).await()
                 return profile
             }
@@ -83,11 +85,12 @@ class UserManager @Inject constructor(
 
     suspend fun updateDisplayName(uid: String, name: String): Result<Unit> {
         return try {
-            usersCollection.document(uid).update(
+            usersCollection.document(uid).set(
                 mapOf(
                     "display_name" to name,
                     "last_active_at" to System.currentTimeMillis()
-                )
+                ),
+                SetOptions.merge()
             ).await()
             Result.success(Unit)
         } catch (e: Exception) {
@@ -97,11 +100,12 @@ class UserManager @Inject constructor(
 
     suspend fun updateEmail(uid: String, email: String): Result<Unit> {
         return try {
-            usersCollection.document(uid).update(
+            usersCollection.document(uid).set(
                 mapOf(
                     "email" to email,
                     "last_active_at" to System.currentTimeMillis()
-                )
+                ),
+                SetOptions.merge()
             ).await()
             Result.success(Unit)
         } catch (e: Exception) {
@@ -111,14 +115,15 @@ class UserManager @Inject constructor(
 
     suspend fun updateSettings(uid: String, settings: UserSettings): Result<Unit> {
         return try {
-            usersCollection.document(uid).update(
+            usersCollection.document(uid).set(
                 mapOf(
                     "settings" to mapOf(
                         "theme" to settings.theme,
                         "unit" to settings.unit
                     ),
                     "last_active_at" to System.currentTimeMillis()
-                )
+                ),
+                SetOptions.merge()
             ).await()
             Result.success(Unit)
         } catch (e: Exception) {
@@ -141,7 +146,7 @@ class UserManager @Inject constructor(
                 updates["best_mpsas"] = mpsas
             }
 
-            usersCollection.document(uid).update(updates).await()
+            usersCollection.document(uid).set(updates, SetOptions.merge()).await()
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)

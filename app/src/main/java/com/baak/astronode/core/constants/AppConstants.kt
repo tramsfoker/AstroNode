@@ -34,4 +34,8 @@ object AppConstants {
 
     // Profile setup
     const val PREF_PROFILE_SETUP_DONE = "profile_setup_done"
+
+    // Session code (6 haneli, karıştırılmayan karakterler)
+    const val SESSION_CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+    const val SESSION_CODE_LENGTH = 6
 }

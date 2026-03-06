@@ -54,6 +54,13 @@ class MapViewModel @Inject constructor(
     private val _mapDataState = MutableStateFlow<MapDataState>(MapDataState.Loading)
     val mapDataState: StateFlow<MapDataState> = _mapDataState.asStateFlow()
 
+    private val _error = MutableStateFlow<String?>(null)
+    val error: StateFlow<String?> = _error.asStateFlow()
+
+    fun clearError() {
+        _error.value = null
+    }
+
     private val _measurements = MutableStateFlow<List<SkyMeasurement>>(emptyList())
     private val _showTestMeasurements = MutableStateFlow(false)
     val showTestMeasurements: StateFlow<Boolean> = _showTestMeasurements.asStateFlow()
@@ -113,7 +120,9 @@ class MapViewModel @Inject constructor(
                 radiusKm = radiusKm
             )
                 .catch { e ->
-                    _mapDataState.value = MapDataState.Error(e.message ?: "Veri yüklenemedi")
+                    val msg = e.message ?: "Veri yüklenemedi"
+                    _mapDataState.value = MapDataState.Error(msg)
+                    _error.value = msg
                 }
                 .collect { list ->
                     _measurements.value = list

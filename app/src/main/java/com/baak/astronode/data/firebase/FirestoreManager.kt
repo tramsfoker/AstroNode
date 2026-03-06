@@ -2,6 +2,7 @@ package com.baak.astronode.data.firebase
 
 import android.util.Log
 import com.baak.astronode.core.constants.AppConstants
+import kotlin.random.Random
 import com.baak.astronode.core.model.Session
 import com.baak.astronode.core.model.SkyMeasurement
 import com.baak.astronode.core.util.GeoHashUtil
@@ -48,25 +49,42 @@ class FirestoreManager @Inject constructor(
 
     private val collection get() = measurementsCollection
 
-    suspend fun createSession(session: Session): Result<String> { return try {
+    suspend fun createSession(session: Session): Result<Session> { return try {
+        val participantIds = if (session.participantIds.isEmpty() && session.createdBy.isNotBlank()) {
+            listOf(session.createdBy)
+        } else session.participantIds
+        val codeToUse = session.code.ifBlank { generateSessionCode() }
         val data = hashMapOf(
             "name" to session.name,
             "description" to session.description,
             "date" to session.date,
             "organizer_name" to session.organizerName,
-            "participant_count" to session.participantCount,
+            "participant_count" to (participantIds.size).takeIf { participantIds.isNotEmpty() },
             "created_by" to session.createdBy,
             "is_Active" to session.isActive,
-            "status" to (session.status)
+            "status" to session.status,
+            "type" to session.type,
+            "participant_ids" to participantIds,
+            "code" to codeToUse
         )
         sessionsCollection.document(session.id).set(data)
-        Log.d("FIRESTORE", "Session oluşturuldu (cache): ${session.id}")
-        Result.success(session.id)
+        Log.d("FIRESTORE", "Session oluşturuldu (cache): ${session.id}, code: $codeToUse")
+        val createdSession = session.copy(
+            code = codeToUse,
+            participantIds = participantIds
+        )
+        Result.success(createdSession)
     } catch (e: Exception) {
         Result.failure(e)
     }
     }
 
+    fun generateSessionCode(): String =
+        (1..AppConstants.SESSION_CODE_LENGTH)
+            .map { AppConstants.SESSION_CODE_CHARS[Random.nextInt(AppConstants.SESSION_CODE_CHARS.length)] }
+            .joinToString("")
+
+    /** Sadece type == "public" olan session'ları döndür (herkese açık liste) */
     fun getActiveSessions(): Flow<List<Session>> = callbackFlow {
         var registration: ListenerRegistration? = null
         try {
@@ -81,7 +99,7 @@ class FirestoreManager @Inject constructor(
                     }
                     val sessions = snapshot?.documents?.mapNotNull { doc ->
                         documentToSession(doc.id, doc.data)
-                    } ?: emptyList()
+                    }?.filter { it.type == "public" || it.type.isEmpty() } ?: emptyList()
                     trySend(sessions)
                 }
         } catch (e: Exception) {
@@ -89,6 +107,41 @@ class FirestoreManager @Inject constructor(
             trySend(emptyList())
         }
         awaitClose { registration?.remove() }
+    }
+
+    /** createdBy == uid VEYA participantIds contains uid olan session'lar (tüm tipler) */
+    fun getMyActiveSessions(uid: String): Flow<List<Session>> = callbackFlow {
+        val sessionsMap = mutableMapOf<String, Session>()
+        fun sendMerged() {
+            trySend(sessionsMap.values.sortedByDescending { it.date })
+        }
+        val reg1 = sessionsCollection
+            .whereEqualTo("created_by", uid)
+            .whereEqualTo("is_Active", true)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    Log.e("FIRESTORE", "getMyActiveSessions (created_by) error: ${error.message}")
+                    return@addSnapshotListener
+                }
+                snapshot?.documents?.forEach { doc ->
+                    documentToSession(doc.id, doc.data)?.let { sessionsMap[doc.id] = it }
+                }
+                sendMerged()
+            }
+        val reg2 = sessionsCollection
+            .whereArrayContains("participant_ids", uid)
+            .whereEqualTo("is_Active", true)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    Log.e("FIRESTORE", "getMyActiveSessions (participant_ids) error: ${error.message}")
+                    return@addSnapshotListener
+                }
+                snapshot?.documents?.forEach { doc ->
+                    documentToSession(doc.id, doc.data)?.let { sessionsMap[doc.id] = it }
+                }
+                sendMerged()
+            }
+        awaitClose { reg1.remove(); reg2.remove() }
     }
 
     fun getSessionById(id: String): Flow<Session?> = callbackFlow {
@@ -162,6 +215,8 @@ class FirestoreManager @Inject constructor(
 
     private fun documentToSession(docId: String, data: Map<String, Any>?): Session? {
         data ?: return null
+        @Suppress("UNCHECKED_CAST")
+        val participantIds = (data["participant_ids"] as? List<*>)?.mapNotNull { it as? String } ?: emptyList()
         return Session(
             id = docId,
             name = data["name"] as? String ?: return null,
@@ -171,8 +226,88 @@ class FirestoreManager @Inject constructor(
             participantCount = (data["participant_count"] as? Number)?.toInt(),
             createdBy = data["created_by"] as? String ?: "",
             isActive = data["is_Active"] as? Boolean ?: true,
-            status = data["status"] as? String ?: "active"
+            status = data["status"] as? String ?: "active",
+            type = data["type"] as? String ?: "public",
+            participantIds = participantIds,
+            code = data["code"] as? String ?: ""
         )
+    }
+
+    suspend fun getSessionByCode(code: String): Session? {
+        val normalized = code.trim().uppercase()
+        if (normalized.length != 6) return null
+        return try {
+            val snapshot = sessionsCollection
+                .whereEqualTo("code", normalized)
+                .whereEqualTo("is_Active", true)
+                .limit(1)
+                .get()
+                .await()
+            snapshot.documents.firstOrNull()?.let { doc ->
+                documentToSession(doc.id, doc.data)
+            }
+        } catch (e: Exception) {
+            Log.e("FIRESTORE", "getSessionByCode error: ${e.message}")
+            null
+        }
+    }
+
+    private suspend fun addParticipantToSession(sessionId: String, uid: String): Result<Unit> {
+        return try {
+            val doc = sessionsCollection.document(sessionId).get().await()
+            if (!doc.exists()) return Result.failure(Exception("Etkinlik bulunamadı"))
+            val data = doc.data ?: return Result.failure(Exception("Etkinlik verisi bulunamadı"))
+            @Suppress("UNCHECKED_CAST")
+            val currentIds = (data["participant_ids"] as? List<*>)?.mapNotNull { it as? String }?.toMutableList() ?: mutableListOf()
+            if (uid in currentIds) return Result.success(Unit)
+            currentIds.add(uid)
+            sessionsCollection.document(sessionId).update(
+                mapOf(
+                    "participant_ids" to currentIds,
+                    "participant_count" to currentIds.size
+                )
+            ).await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun joinSessionByCode(code: String, uid: String): Result<Session> {
+        val session = getSessionByCode(code) ?: return Result.failure(Exception("Geçersiz veya süresi dolmuş kod"))
+        return when (session.type) {
+            "invite_only" -> Result.failure(Exception("Bu etkinlik sadece davetliler içindir"))
+            "public", "private" -> {
+                addParticipantToSession(session.id, uid).fold(
+                    onSuccess = { Result.success(session) },
+                    onFailure = { Result.failure(it) }
+                )
+            }
+            else -> addParticipantToSession(session.id, uid).fold(
+                onSuccess = { Result.success(session) },
+                onFailure = { Result.failure(it) }
+            )
+        }
+    }
+
+    suspend fun leaveSession(sessionId: String, uid: String): Result<Unit> {
+        return try {
+            val doc = sessionsCollection.document(sessionId).get().await()
+            if (!doc.exists()) return Result.failure(Exception("Etkinlik bulunamadı"))
+            val data = doc.data ?: return Result.failure(Exception("Etkinlik verisi bulunamadı"))
+            @Suppress("UNCHECKED_CAST")
+            val currentIds = (data["participant_ids"] as? List<*>)?.mapNotNull { it as? String }?.toMutableList() ?: mutableListOf()
+            currentIds.remove(uid)
+            sessionsCollection.document(sessionId).update(
+                mapOf(
+                    "participant_ids" to currentIds,
+                    "participant_count" to currentIds.size
+                )
+            ).await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
     }
 
     suspend fun saveMeasurement(measurement: SkyMeasurement): Result<String> { return try {

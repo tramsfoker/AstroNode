@@ -21,6 +21,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flatMapLatest
@@ -51,11 +52,21 @@ class ProfileViewModel @Inject constructor(
         }
     }
 
-    val userProfile: StateFlow<UserProfile?> = flow {
-        val u = firebaseAuthManager.ensureAnonymousAuth()
-        emit(u)
-    }.flatMapLatest { u ->
-        userManager.getUserProfile(u)
+    private val _displayNameOverride = MutableStateFlow<String?>(null)
+
+    val userProfile: StateFlow<UserProfile?> = combine(
+        flow {
+            val u = firebaseAuthManager.ensureAnonymousAuth()
+            emit(u)
+        }.flatMapLatest { u ->
+            userManager.getUserProfile(u)
+        },
+        _displayNameOverride
+    ) { profile, override ->
+        when {
+            profile != null && override != null -> profile.copy(displayName = override)
+            else -> profile
+        }
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
@@ -120,8 +131,12 @@ class ProfileViewModel @Inject constructor(
     fun updateDisplayName(name: String) {
         val u = uid ?: return
         viewModelScope.launch {
-            userManager.updateDisplayName(u, name)
-                .onFailure { _error.value = it.message }
+            val result = userManager.updateDisplayName(u, name)
+            if (result.isSuccess) {
+                _displayNameOverride.value = name
+            } else {
+                _error.value = result.exceptionOrNull()?.message
+            }
         }
     }
 
