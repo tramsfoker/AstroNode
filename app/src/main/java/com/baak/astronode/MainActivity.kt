@@ -12,9 +12,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import com.baak.astronode.core.util.ThemeMode
 import com.baak.astronode.core.util.ThemePreference
-import com.baak.astronode.data.migration.GeoHashMigration
-import com.google.firebase.auth.FirebaseAuth
-import kotlinx.coroutines.tasks.await
+import com.baak.astronode.data.firebase.FirebaseAuthManager
 import com.baak.astronode.ui.navigation.NavGraph
 import com.baak.astronode.ui.theme.AstroNodeTheme
 import com.baak.astronode.ui.theme.LocalThemePreference
@@ -28,7 +26,7 @@ import javax.inject.Inject
 class MainActivity : ComponentActivity() {
 
     @Inject
-    lateinit var geoHashMigration: GeoHashMigration
+    lateinit var firebaseAuthManager: FirebaseAuthManager
 
     @Inject
     lateinit var themePreference: ThemePreference
@@ -36,16 +34,8 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        lifecycleScope.launch(Dispatchers.IO) {
-            geoHashMigration.runIfNeeded()
-        }
-        if (FirebaseAuth.getInstance().currentUser == null) {
-            lifecycleScope.launch(Dispatchers.IO) {
-                try {
-                    FirebaseAuth.getInstance().signInAnonymously().await()
-                } catch (_: Exception) { }
-            }
-        }
+        // Oturum yoksa anonim hesap aç (Mutex sayesinde diğer ekranlarla çakışıp ikinci hesap üretmez)
+        lifecycleScope.launch(Dispatchers.IO) { firebaseAuthManager.uidOrNull() }
 
         // USB cihaz bağlanınca açıldıysa SqmUsbManager scan yapacak (HomeViewModel init)
         if (intent?.action == UsbManager.ACTION_USB_DEVICE_ATTACHED) {

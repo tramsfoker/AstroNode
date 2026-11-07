@@ -38,4 +38,6 @@ data class SkyMeasurement(
     val observingRating: String? = null,
     val isDaytime: Boolean = false,
     val measurementTime: String? = null,
+    // SQM cihazının iç sıcaklığı (°C)
+    val sqmTemperature: Double? = null,
 )

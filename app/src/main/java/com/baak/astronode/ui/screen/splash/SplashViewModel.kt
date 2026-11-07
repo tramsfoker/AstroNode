@@ -25,7 +25,7 @@ class SplashViewModel @Inject constructor(
     private val _needsNickname = MutableStateFlow<Boolean?>(null)
     val needsNickname: StateFlow<Boolean?> = _needsNickname.asStateFlow()
 
-    private val prefs = context.getSharedPreferences("astro_node_profile", Context.MODE_PRIVATE)
+    private val prefs = context.getSharedPreferences(AppConstants.PREFS_PROFILE, Context.MODE_PRIVATE)
 
     fun checkProfileAndNavigate(onReady: (needsNickname: Boolean) -> Unit) {
         viewModelScope.launch {

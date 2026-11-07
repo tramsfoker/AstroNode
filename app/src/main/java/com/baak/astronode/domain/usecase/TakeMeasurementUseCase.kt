@@ -2,6 +2,7 @@ package com.baak.astronode.domain.usecase
 
 import com.baak.astronode.core.model.SkyMeasurement
 import com.baak.astronode.core.util.BortleScale
+import com.baak.astronode.core.util.MeasurementValidator
 import com.baak.astronode.core.util.MoonCalc
 import com.baak.astronode.core.util.ObservingScore
 import com.baak.astronode.core.util.SunCalc
@@ -46,6 +47,14 @@ class TakeMeasurementUseCase @Inject constructor(
             // a) SQM'den MPSAS oku
             val sqmReading = sqmUsbManager.readMeasurement()
                 ?: return@withTimeout Result.failure(Exception("SQM okunamadı"))
+            if (MeasurementValidator.validate(sqmReading.mpsas) == MeasurementValidator.Result.INVALID) {
+                val msg = if (sqmReading.mpsas < 0) {
+                    "Ortam ölçüm için çok aydınlık (SQM: ${sqmReading.mpsas}). Karanlıkta tekrar deneyin."
+                } else {
+                    "SQM geçersiz bir değer döndürdü (${sqmReading.mpsas}). Cihazı kontrol edip tekrar deneyin."
+                }
+                return@withTimeout Result.failure(Exception(msg))
+            }
 
             // b) Bortle sınıfı hesapla
             val bortleClass = BortleScale.toBortleClass(sqmReading.mpsas)
@@ -63,7 +72,7 @@ class TakeMeasurementUseCase @Inject constructor(
             val uid = try {
                 firebaseAuthManager.ensureAnonymousAuth()
             } catch (e: Exception) {
-                return@withTimeout Result.failure(Exception("Kimlik doğrulama başarısız: ${e.message}"))
+                return@withTimeout Result.failure(Exception(e.message ?: "Kimlik doğrulama başarısız"))
             }
 
             // e2) Gözlemci adı (UserManager'dan)
@@ -85,7 +94,9 @@ class TakeMeasurementUseCase @Inject constructor(
             // e6) Gözlem zamanı kontrolü
             val timeStatus = SunCalc.isGoodTimeForObserving(location.lat, location.lng)
             val isDaytime = !timeStatus.canObserve
-            val effectiveIsTest = isTest || forceDaytimeTest || isDaytime
+            val outOfNightRange = MeasurementValidator.validate(sqmReading.mpsas) ==
+                MeasurementValidator.Result.OUT_OF_NIGHT_RANGE
+            val effectiveIsTest = isTest || forceDaytimeTest || isDaytime || outOfNightRange
 
             // e7) Ölçüm saati (HH:mm)
             val cal = java.util.Calendar.getInstance().apply { timeInMillis = System.currentTimeMillis() }
@@ -121,7 +132,8 @@ class TakeMeasurementUseCase @Inject constructor(
                 observingScore = observingCondition.score,
                 observingRating = observingCondition.rating,
                 isDaytime = isDaytime,
-                measurementTime = measurementTime
+                measurementTime = measurementTime,
+                sqmTemperature = sqmReading.temperature
             )
 
             // g) Firestore'a kaydet

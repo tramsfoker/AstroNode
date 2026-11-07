@@ -108,7 +108,7 @@ class AnalysisViewModel @Inject constructor(
     }
 
     val activeSessions: StateFlow<List<Session>> = kotlinx.coroutines.flow.flow {
-        val uid = try { firebaseAuthManager.ensureAnonymousAuth() } catch (_: Exception) { "" }
+        val uid = firebaseAuthManager.uidOrNull().orEmpty()
         emit(uid)
     }.flatMapLatest { uid ->
         combine(
@@ -121,8 +121,20 @@ class AnalysisViewModel @Inject constructor(
         initialValue = emptyList()
     )
 
-    private val measurements: StateFlow<List<SkyMeasurement>> = firestoreManager
-        .getMeasurements()
+    private val _selectedSessionId = MutableStateFlow<String?>(null)
+
+    /** Etkinlik seçiliyse o etkinliğin tüm ölçümleri, değilse sadece kendi ölçümlerim. */
+    private val measurements: StateFlow<List<SkyMeasurement>> = combine(
+        firebaseAuthManager.uid,
+        _selectedSessionId
+    ) { uid, sessionId -> uid to sessionId }
+        .flatMapLatest { (uid, sessionId) ->
+            when {
+                sessionId != null -> firestoreManager.getMeasurementsBySession(sessionId)
+                uid != null -> firestoreManager.getMyMeasurements(uid)
+                else -> flowOf(emptyList())
+            }
+        }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
@@ -130,7 +142,6 @@ class AnalysisViewModel @Inject constructor(
         )
 
     private val _selectedTimeRange = MutableStateFlow(TimeRange.LAST_30_DAYS)
-    private val _selectedSessionId = MutableStateFlow<String?>(null)
     private val _excludeDaytime = MutableStateFlow(true)
 
     val analysisState: StateFlow<AnalysisState> = combine(
@@ -161,7 +172,7 @@ class AnalysisViewModel @Inject constructor(
     }
 
     suspend fun exportCsv(measurements: List<SkyMeasurement>): android.net.Uri? {
-        return exportDataUseCase.exportToCsv(measurements.ifEmpty { null })
+        return if (measurements.isEmpty()) null else exportDataUseCase.exportToCsv(measurements)
     }
 
     private fun applyFilters(

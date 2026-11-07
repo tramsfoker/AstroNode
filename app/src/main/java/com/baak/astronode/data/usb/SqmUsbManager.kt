@@ -9,6 +9,7 @@ import android.hardware.usb.UsbDevice
 import android.hardware.usb.UsbManager
 import android.os.Build
 import android.util.Log
+import androidx.core.content.ContextCompat
 import com.baak.astronode.core.constants.AppConstants
 import com.hoho.android.usbserial.driver.UsbSerialPort
 import com.hoho.android.usbserial.driver.UsbSerialProber
@@ -81,19 +82,28 @@ class SqmUsbManager @Inject constructor(
                 if (usbManager.hasPermission(device)) {
                     tryConnect()
                 } else {
-                    _connectionState.value = UsbConnectionState.PERMISSION_PENDING
-                    val intent = Intent(ACTION_USB_PERMISSION).apply {
-                        setPackage(context.packageName)
-                    }
-                    val permIntent = PendingIntent.getBroadcast(
-                        context, 0, intent,
-                        PendingIntent.FLAG_IMMUTABLE
-                    )
-                    usbManager.requestPermission(device, permIntent)
+                    requestUsbPermission(device)
                 }
                 return
             }
         }
+    }
+
+    /**
+     * USB izin isteği. PendingIntent MUTABLE olmalı: sistem sonucu (EXTRA_PERMISSION_GRANTED, EXTRA_DEVICE)
+     * intent'e ekler. Önceki sürümde FLAG_IMMUTABLE vardı → izin verilse bile "reddedildi" okunuyordu.
+     * Android 14+ mutable PendingIntent için açık (paket belirtilmiş) intent ister — setPackage ile sağlanır.
+     */
+    private fun requestUsbPermission(device: UsbDevice) {
+        _connectionState.value = UsbConnectionState.PERMISSION_PENDING
+        val intent = Intent(ACTION_USB_PERMISSION).setPackage(context.packageName)
+        val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            PendingIntent.FLAG_MUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        } else {
+            PendingIntent.FLAG_UPDATE_CURRENT
+        }
+        val permIntent = PendingIntent.getBroadcast(context, 0, intent, flags)
+        usbManager.requestPermission(device, permIntent)
     }
 
     fun registerReceiver() {
@@ -103,11 +113,8 @@ class SqmUsbManager @Inject constructor(
             addAction(UsbManager.ACTION_USB_DEVICE_DETACHED)
             addAction(ACTION_USB_PERMISSION)
         }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            context.registerReceiver(usbReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
-        } else {
-            context.registerReceiver(usbReceiver, filter)
-        }
+        // Tüm Android sürümlerinde güvenli kayıt (Android 14+ bayraksız kaydı reddeder)
+        ContextCompat.registerReceiver(context, usbReceiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
     }
 
     fun unregisterReceiver() {
@@ -128,15 +135,7 @@ class SqmUsbManager @Inject constructor(
         if (usbManager.hasPermission(device)) {
             openConnection()
         } else {
-            _connectionState.value = UsbConnectionState.PERMISSION_PENDING
-            val intent = Intent(ACTION_USB_PERMISSION).apply {
-                setPackage(context.packageName)
-            }
-            val permIntent = PendingIntent.getBroadcast(
-                context, 0, intent,
-                PendingIntent.FLAG_IMMUTABLE
-            )
-            usbManager.requestPermission(device, permIntent)
+            requestUsbPermission(device)
         }
     }
 

@@ -37,14 +37,19 @@ class WeatherService @Inject constructor() {
         return withContext(Dispatchers.IO) {
             try {
                 val url = "https://api.open-meteo.com/v1/forecast" +
-                    "?latitude=$lat&longitude=$lng" +
+                    "?latitude=${"%.4f".format(java.util.Locale.US, lat)}&longitude=${"%.4f".format(java.util.Locale.US, lng)}" +
                     "&current=temperature_2m,relative_humidity_2m," +
                     "cloud_cover,wind_speed_10m,visibility" +
                     "&timezone=auto"
 
                 val request = Request.Builder().url(url).build()
-                val response = client.newCall(request).execute()
-                val body = response.body?.string() ?: return@withContext null
+                val body = client.newCall(request).execute().use { response ->
+                    if (!response.isSuccessful) {
+                        Log.w("WEATHER", "HTTP ${response.code}")
+                        return@withContext cachedWeather
+                    }
+                    response.body?.string()
+                } ?: return@withContext cachedWeather
                 val json = JSONObject(body)
                 val current = json.optJSONObject("current") ?: return@withContext null
 

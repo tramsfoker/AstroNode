@@ -1,8 +1,6 @@
 package com.baak.astronode.ui.screen.profile
 
 import android.content.Intent
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -62,8 +60,6 @@ import com.baak.astronode.R
 import com.baak.astronode.core.model.Session
 import com.baak.astronode.core.util.ThemeMode
 import com.baak.astronode.ui.theme.LocalThemePreference
-import com.google.android.gms.auth.api.signin.GoogleSignIn
-import com.google.android.gms.common.api.ApiException
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -91,23 +87,12 @@ fun ProfileScreen(
 
     var showEditDialog by remember { mutableStateOf(false) }
     var editName by remember { mutableStateOf(profile?.displayName ?: "") }
-    var showResetAccountDialog by remember { mutableStateOf(false) }
     var showSignOutDialog by remember { mutableStateOf(false) }
 
-    val googleSignInLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
-        try {
-            val account = task.getResult(ApiException::class.java)
-            account.idToken?.let { token ->
-                viewModel.handleGoogleSignInResult(token)
-            }
-        } catch (e: ApiException) {
-            viewModel.clearError()
-            // Kullanıcı iptal etti veya hata
-        }
-    }
+    val activity = context as? android.app.Activity
+    val pendingAccountSwitch by viewModel.pendingAccountSwitch.collectAsStateWithLifecycle()
+    val deleteState by viewModel.deleteState.collectAsStateWithLifecycle()
+    var showDeleteAccountDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(profile) {
         editName = profile?.displayName ?: ""
@@ -175,9 +160,7 @@ fun ProfileScreen(
                     editName = profile?.displayName ?: ""
                     showEditDialog = true
                 },
-                onGoogleLinkClick = {
-                    googleSignInLauncher.launch(viewModel.googleSignInClient.signInIntent)
-                }
+                onGoogleLinkClick = { activity?.let { viewModel.linkWithGoogle(it) } }
             )
 
             // B) İstatistikler 2x2 grid
@@ -204,7 +187,7 @@ fun ProfileScreen(
             DangerZoneSection(
                 isLinkedWithGoogle = isLinkedWithGoogle,
                 onExport = { viewModel.exportData() },
-                onResetAccount = { showResetAccountDialog = true },
+                onDeleteAccount = { showDeleteAccountDialog = true },
                 onSignOut = { showSignOutDialog = true }
             )
         }
@@ -224,20 +207,25 @@ fun ProfileScreen(
         )
     }
 
-    if (showResetAccountDialog) {
-        ResetAccountDialog(
-            onConfirm = {
-                viewModel.resetAccount(context as? androidx.activity.ComponentActivity)
-                showResetAccountDialog = false
-            },
-            onDismiss = { showResetAccountDialog = false }
+    if (showDeleteAccountDialog || deleteState == DeleteAccountState.InProgress) {
+        DeleteAccountDialog(
+            inProgress = deleteState == DeleteAccountState.InProgress,
+            onConfirm = { activity?.let { viewModel.deleteAccount(it) } },
+            onDismiss = { showDeleteAccountDialog = false }
+        )
+    }
+
+    pendingAccountSwitch?.let {
+        AccountSwitchDialog(
+            onConfirm = { viewModel.confirmAccountSwitch() },
+            onDismiss = { viewModel.dismissAccountSwitch() }
         )
     }
 
     if (showSignOutDialog) {
         SignOutDialog(
             onConfirm = {
-                viewModel.resetAccount(context as? androidx.activity.ComponentActivity)
+                activity?.let { viewModel.signOut(it) }
                 showSignOutDialog = false
             },
             onDismiss = { showSignOutDialog = false }
@@ -582,9 +570,9 @@ private fun AppInfoSection(viewModel: ProfileViewModel) {
                 modifier = Modifier.size(64.dp)
             )
             Text("Baak Bilim ve Amatör Astronomi Kulübü katkılarıyla", style = MaterialTheme.typography.bodyMedium, color = colorScheme.onSurfaceVariant)
-            Text("AstroNode v1.0.0", style = MaterialTheme.typography.bodyLarge, color = colorScheme.onSurface)
-            TextButton(onClick = { viewModel.openGitHub() }) {
-                Text("GitHub", color = colorScheme.primary)
+            Text("AstroNode v${com.baak.astronode.BuildConfig.VERSION_NAME}", style = MaterialTheme.typography.bodyLarge, color = colorScheme.onSurface)
+            TextButton(onClick = { viewModel.openPrivacyPolicy() }) {
+                Text("Gizlilik Politikası", color = colorScheme.primary)
             }
         }
     }
@@ -594,7 +582,7 @@ private fun AppInfoSection(viewModel: ProfileViewModel) {
 private fun DangerZoneSection(
     isLinkedWithGoogle: Boolean,
     onExport: () -> Unit,
-    onResetAccount: () -> Unit,
+    onDeleteAccount: () -> Unit,
     onSignOut: () -> Unit
 ) {
     val colorScheme = MaterialTheme.colorScheme
@@ -609,28 +597,15 @@ private fun DangerZoneSection(
             onClick = onExport,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text("Verilerimi Dışa Aktar", color = colorScheme.primary)
+            Text("Ölçümlerimi Dışa Aktar (CSV)", color = colorScheme.primary)
         }
         if (isLinkedWithGoogle) {
-            Text(
-                text = "Çıkış Yap",
-                style = MaterialTheme.typography.bodySmall,
-                color = colorScheme.error,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { onSignOut() }
-                    .padding(vertical = 8.dp)
-            )
-        } else {
-            Text(
-                text = "Hesabı Sıfırla",
-                style = MaterialTheme.typography.bodySmall,
-                color = colorScheme.error,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { onResetAccount() }
-                    .padding(vertical = 8.dp)
-            )
+            TextButton(onClick = onSignOut, modifier = Modifier.fillMaxWidth()) {
+                Text("Çıkış Yap", color = colorScheme.onSurfaceVariant)
+            }
+        }
+        TextButton(onClick = onDeleteAccount, modifier = Modifier.fillMaxWidth()) {
+            Text("Hesabımı ve Verilerimi Sil", color = colorScheme.error)
         }
     }
 }
@@ -671,28 +646,66 @@ private fun EditDisplayNameDialog(
 }
 
 @Composable
-private fun ResetAccountDialog(
+private fun DeleteAccountDialog(
+    inProgress: Boolean,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val colorScheme = MaterialTheme.colorScheme
+    AlertDialog(
+        onDismissRequest = { if (!inProgress) onDismiss() },
+        title = { Text("Hesabı Kalıcı Olarak Sil", color = colorScheme.onSurface) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(
+                    "Tüm ölçümleriniz, oluşturduğunuz etkinlikler ve profiliniz sunucudan kalıcı olarak silinecek. " +
+                        "Bu işlem geri alınamaz. İsterseniz önce ölçümlerinizi CSV olarak dışa aktarın.",
+                    color = colorScheme.onSurfaceVariant
+                )
+                if (inProgress) {
+                    androidx.compose.material3.LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onConfirm, enabled = !inProgress) {
+                Text("Kalıcı Olarak Sil", color = colorScheme.error)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss, enabled = !inProgress) {
+                Text("İptal", color = colorScheme.onSurfaceVariant)
+            }
+        },
+        containerColor = colorScheme.surface
+    )
+}
+
+@Composable
+private fun AccountSwitchDialog(
     onConfirm: () -> Unit,
     onDismiss: () -> Unit
 ) {
     val colorScheme = MaterialTheme.colorScheme
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Hesabı Sıfırla", color = colorScheme.onSurface) },
+        title = { Text("Bu Google hesabı zaten kayıtlı", color = colorScheme.onSurface) },
         text = {
             Text(
-                "DİKKAT: Tüm yerel verileriniz silinecek ve yeni anonim hesap oluşturulacak. Ölçümleriniz sunucuda kalır ama bu cihazla bağlantısı kopar. Devam etmek istiyor musunuz?",
+                "Seçtiğiniz Google hesabı başka bir AstroNode hesabına bağlı. O hesaba geçerseniz, " +
+                    "bu cihazdaki anonim hesapla yaptığınız ölçümler o hesaba taşınmaz. " +
+                    "Önce ölçümlerinizi dışa aktarmak isteyebilirsiniz.",
                 color = colorScheme.onSurfaceVariant
             )
         },
         confirmButton = {
             TextButton(onClick = onConfirm) {
-                Text("Sıfırla", color = colorScheme.error)
+                Text("Hesaba Geç", color = colorScheme.error)
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("İptal", color = colorScheme.onSurfaceVariant)
+                Text("Vazgeç", color = colorScheme.onSurfaceVariant)
             }
         },
         containerColor = colorScheme.surface
@@ -710,7 +723,7 @@ private fun SignOutDialog(
         title = { Text("Çıkış Yap", color = colorScheme.onSurface) },
         text = {
             Text(
-                "Google hesabınızdan çıkış yapacaksınız. Yeni anonim hesap oluşturulacak.",
+                "Google hesabınızdan çıkış yapacaksınız. Verileriniz Google hesabınızda kalır; tekrar giriş yaparak erişebilirsiniz.",
                 color = colorScheme.onSurfaceVariant
             )
         },

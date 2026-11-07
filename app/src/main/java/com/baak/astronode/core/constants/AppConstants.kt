@@ -24,16 +24,39 @@ object AppConstants {
     const val FIRESTORE_COLLECTION_MEASUREMENTS = "measurements"
     const val FIRESTORE_COLLECTION_SESSIONS = "sessions"
     const val FIRESTORE_COLLECTION_USERS = "users"
+    const val FIRESTORE_COLLECTION_SESSION_CODES = "session_codes"
     const val FIRESTORE_QUERY_LIMIT = 500L
+    const val PUBLIC_SESSIONS_LIMIT = 100L
+    const val FIRESTORE_BATCH_LIMIT = 400
+
+    // Harita sorgusu: her geohash aralığı için en fazla bu kadar belge (maliyet koruması)
+    const val MAP_QUERY_LIMIT_PER_BOUND = 250L
+    const val MAP_MAX_RESULTS = 1500
+
+    // Auth
+    const val AUTH_TIMEOUT_MS = 10_000L
+
+    // Alan uzunluk sınırları (firestore.rules ile aynı)
+    const val SESSION_NAME_MAX = 80
+    const val SESSION_DESCRIPTION_MAX = 500
+    const val ORGANIZER_NAME_MAX = 60
+    const val DISPLAY_NAME_MAX = 40
+    const val NOTE_MAX = 500
+
+    // Kod üretiminde çakışma olursa yeniden deneme
+    const val SESSION_CODE_MAX_ATTEMPTS = 5
+    const val SESSION_CODE_CHECK_TIMEOUT_MS = 4_000L
 
     // Haptic feedback
     const val VIBRATION_DURATION_MS = 200L
 
-    // Migration
-    const val PREF_MIGRATION_GEOHASH_DONE = "migration_geohash_done"
-
     // Profile setup
+    const val PREFS_PROFILE = "astro_node_profile"
     const val PREF_PROFILE_SETUP_DONE = "profile_setup_done"
+
+    // Yasal sayfalar (firebase/public — Firebase Hosting)
+    const val PRIVACY_POLICY_URL = "https://astronode-50a6c.web.app/privacy"
+    const val ACCOUNT_DELETION_URL = "https://astronode-50a6c.web.app/delete-account"
 
     // Session code (6 haneli, karıştırılmayan karakterler)
     const val SESSION_CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
