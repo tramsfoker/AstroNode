@@ -251,7 +251,7 @@ fun MapScreen(
                     modifier = Modifier.padding(horizontal = 16.dp)
                 ) {
                     Text(
-                        text = "Harita çevrimdışı kullanılamıyor",
+                        text = stringResource(R.string.map_harita_cevrimdisi_kullanilamiyor),
                         style = MaterialTheme.typography.bodySmall,
                         color = colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(12.dp)
@@ -288,7 +288,7 @@ fun MapScreen(
         ) {
             Icon(
                 imageVector = Icons.Default.MyLocation,
-                contentDescription = "Konumuma Git",
+                contentDescription = stringResource(R.string.map_konumuma_git),
                 modifier = Modifier.size(24.dp)
             )
         }

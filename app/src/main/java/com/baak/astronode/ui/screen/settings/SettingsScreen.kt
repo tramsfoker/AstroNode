@@ -1,5 +1,7 @@
 package com.baak.astronode.ui.screen.settings
 
+import androidx.compose.ui.res.stringResource
+
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
@@ -54,12 +56,12 @@ fun SettingsScreen(
             .background(colorScheme.surface)
     ) {
         TopAppBar(
-            title = { Text("Ayarlar", color = colorScheme.onSurface) },
+            title = { Text(stringResource(R.string.common_settings), color = colorScheme.onSurface) },
             navigationIcon = {
                 IconButton(onClick = onNavigateBack) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Geri",
+                        contentDescription = stringResource(R.string.common_back),
                         tint = colorScheme.onSurface
                     )
                 }
@@ -79,7 +81,7 @@ fun SettingsScreen(
         ) {
             // Tema Seçimi
             Text(
-                text = "Tema Seçimi",
+                text = stringResource(R.string.settings_tema_secimi),
                 style = MaterialTheme.typography.titleMedium,
                 color = colorScheme.onSurface
             )
@@ -130,7 +132,7 @@ fun SettingsScreen(
 
             // Uygulama Bilgisi
             Text(
-                text = "Uygulama Bilgisi",
+                text = stringResource(R.string.settings_uygulama_bilgisi),
                 style = MaterialTheme.typography.titleMedium,
                 color = colorScheme.onSurface
             )
@@ -157,7 +159,7 @@ fun SettingsScreen(
                     color = colorScheme.onSurface
                 )
                 Text(
-                    text = "Baak Bilim ve Amatör Astronomi Kulübü",
+                    text = stringResource(R.string.common_club_name),
                     style = MaterialTheme.typography.bodyMedium,
                     color = colorScheme.onSurfaceVariant
                 )

@@ -1,5 +1,9 @@
 package com.baak.astronode.ui.screen.analysis
 
+import com.baak.astronode.R
+
+import androidx.compose.ui.res.stringResource
+
 import android.content.Intent
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -209,7 +213,7 @@ private fun FilterRow(
                 onDismissRequest = { sessionMenuExpanded = false }
             ) {
                 DropdownMenuItem(
-                    text = { Text("Tüm Etkinlikler", color = colorScheme.onSurface) },
+                    text = { Text(stringResource(R.string.common_all_sessions), color = colorScheme.onSurface) },
                     onClick = {
                         onSessionFilter(null)
                         sessionMenuExpanded = false
@@ -237,7 +241,7 @@ private fun FilterRow(
                 onCheckedChange = onExcludeDaytime
             )
             Text(
-                text = "Gündüz ölçümlerini hariç tut",
+                text = stringResource(R.string.analysis_gunduz_olcumlerini_haric_tut),
                 style = MaterialTheme.typography.bodySmall,
                 color = colorScheme.onSurfaceVariant
             )
@@ -308,12 +312,12 @@ private fun ObservingQualityCard(observingQuality: ObservingQualityState) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "🔭 GÖZLEM KALİTESİ",
+                    text = stringResource(R.string.analysis_gozlem_kalitesi),
                     style = MaterialTheme.typography.titleMedium,
                     color = colorScheme.onSurface
                 )
                 Text(
-                    text = "Şu An",
+                    text = stringResource(R.string.analysis_su_an),
                     style = MaterialTheme.typography.labelMedium,
                     color = colorScheme.onSurfaceVariant
                 )
@@ -377,14 +381,14 @@ private fun MeasurementSummaryCard(state: AnalysisState) {
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
             Text(
-                text = "📊 Ölçümlerim",
+                text = stringResource(R.string.analysis_olcumlerim),
                 style = MaterialTheme.typography.titleMedium,
                 color = colorScheme.onSurface
             )
             Spacer(modifier = Modifier.height(16.dp))
             if (state.totalMeasurements == 0) {
                 Text(
-                    text = "Henüz ölçüm yok",
+                    text = stringResource(R.string.analysis_henuz_olcum_yok),
                     style = MaterialTheme.typography.bodyLarge,
                     color = colorScheme.onSurfaceVariant
                 )
@@ -489,14 +493,14 @@ private fun BortleDistributionCard(state: AnalysisState) {
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
             Text(
-                text = "Bortle Dağılımı",
+                text = stringResource(R.string.analysis_bortle_dagilimi),
                 style = MaterialTheme.typography.titleMedium,
                 color = colorScheme.onSurface
             )
             Spacer(modifier = Modifier.height(16.dp))
             if (grouped.isEmpty()) {
                 Text(
-                    text = "Bu dönemde ölçüm yok",
+                    text = stringResource(R.string.analysis_bu_donemde_olcum_yok),
                     style = MaterialTheme.typography.bodyMedium,
                     color = colorScheme.onSurfaceVariant
                 )
@@ -602,7 +606,7 @@ private fun TimeSeriesChart(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "Bu dönemde ölçüm bulunmuyor",
+                        text = stringResource(R.string.analysis_bu_donemde_olcum_bulunmuyor),
                         style = MaterialTheme.typography.bodyMedium,
                         color = onSurfaceVariant
                     )
@@ -778,7 +782,7 @@ private fun SessionComparisonCard(
             // Ortalama Koşullar
             if (sessionStat.avgWeather != null || sessionStat.avgMoonPhase != null || sessionStat.avgObservingScore != null) {
                 Text(
-                    text = "Ortalama Koşullar",
+                    text = stringResource(R.string.analysis_ortalama_kosullar),
                     style = MaterialTheme.typography.labelMedium,
                     color = colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 12.dp)
@@ -789,7 +793,7 @@ private fun SessionComparisonCard(
                     sessionStat.avgWeather?.humidity?.let { Text("Ort. Nem: %$it", style = MaterialTheme.typography.bodySmall, color = colorScheme.onSurfaceVariant) }
                     if (sessionStat.avgMoonEmoji != null || sessionStat.avgMoonPhase != null || sessionStat.avgMoonIllumination != null) {
                         Text(
-                            text = "Ay durumu: " + buildString {
+                            text = stringResource(R.string.analysis_ay_durumu) + buildString {
                                 sessionStat.avgMoonEmoji?.let { append("$it ") }
                                 sessionStat.avgMoonPhase?.let { append(it) }
                                 sessionStat.avgMoonIllumination?.let { append(" (%$it)") }
@@ -812,7 +816,7 @@ private fun SessionComparisonCard(
                 modifier = Modifier.padding(top = 12.dp),
                 shape = RoundedCornerShape(12.dp)
             ) {
-                Text("Rapor Oluştur")
+                Text(stringResource(R.string.analysis_rapor_olustur))
             }
         }
     }
@@ -836,14 +840,14 @@ private fun BottomButtons(
             modifier = Modifier.weight(1f),
             shape = RoundedCornerShape(12.dp)
         ) {
-            Text("CSV İndir")
+            Text(stringResource(R.string.analysis_csv_indir))
         }
         Button(
             onClick = onReportClick,
             modifier = Modifier.weight(1f),
             shape = RoundedCornerShape(12.dp)
         ) {
-            Text("Rapor Paylaş")
+            Text(stringResource(R.string.analysis_rapor_paylas))
         }
     }
 }

@@ -1,5 +1,7 @@
 package com.baak.astronode.ui.screen.profile
 
+import androidx.compose.ui.res.stringResource
+
 import android.content.Intent
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -133,12 +135,12 @@ fun ProfileScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
         TopAppBar(
-            title = { Text("Hesabım", color = colorScheme.onSurface) },
+            title = { Text(stringResource(R.string.profile_hesabim), color = colorScheme.onSurface) },
             navigationIcon = {
                 IconButton(onClick = onNavigateBack) {
                     Icon(
                         Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Geri",
+                        contentDescription = stringResource(R.string.common_back),
                         tint = colorScheme.onSurface
                     )
                 }
@@ -301,7 +303,7 @@ private fun AccountStatusCard(
                         Spacer(modifier = Modifier.size(8.dp))
                         if (isLinkedWithGoogle) {
                             Text(
-                                text = "✅ Google",
+                                text = stringResource(R.string.profile_google),
                                 style = MaterialTheme.typography.labelMedium,
                                 color = colorScheme.primary
                             )
@@ -319,13 +321,13 @@ private fun AccountStatusCard(
                             )
                         }
                         Text(
-                            text = "Hesap güvende",
+                            text = stringResource(R.string.profile_hesap_guvende),
                             style = MaterialTheme.typography.labelSmall,
                             color = colorScheme.primary
                         )
                     } else {
                         Text(
-                            text = "Anonim Hesap",
+                            text = stringResource(R.string.profile_anonim_hesap),
                             style = MaterialTheme.typography.bodyMedium,
                             color = colorScheme.onSurfaceVariant
                         )
@@ -358,11 +360,11 @@ private fun AccountStatusCard(
                     modifier = Modifier.fillMaxWidth(),
                     colors = ButtonDefaults.buttonColors(containerColor = colorScheme.primary)
                 ) {
-                    Text("🔗 Google ile Bağla")
+                    Text(stringResource(R.string.profile_google_ile_bagla))
                 }
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "Hesabınızı kalıcı yapın, cihaz değişse bile verileriniz korunsun.",
+                    text = stringResource(R.string.profile_hesabinizi_kalici_yapin_cihaz_degisse),
                     style = MaterialTheme.typography.bodySmall,
                     color = colorScheme.onSurfaceVariant
                 )
@@ -390,13 +392,13 @@ private fun StatsGrid(
             modifier = Modifier.weight(1f),
             icon = "📊",
             value = measurementCount.toString(),
-            label = "Toplam Ölçüm"
+            label = stringResource(R.string.profile_toplam_olcum)
         )
         StatCard(
             modifier = Modifier.weight(1f),
             icon = "⭐",
             value = bestMpsas?.let { String.format("%.2f", it) } ?: "—",
-            label = "En İyi MPSAS"
+            label = stringResource(R.string.profile_en_iyi_mpsas)
         )
     }
     Row(
@@ -407,13 +409,13 @@ private fun StatsGrid(
             modifier = Modifier.weight(1f),
             icon = "📋",
             value = sessionCount.toString(),
-            label = "Katıldığı Etkinlik"
+            label = stringResource(R.string.profile_katildigi_etkinlik)
         )
         StatCard(
             modifier = Modifier.weight(1f),
             icon = "📅",
             value = observationDays.toString(),
-            label = "Gözlem Günü"
+            label = stringResource(R.string.profile_gozlem_gunu)
         )
     }
 }
@@ -455,7 +457,7 @@ private fun SessionsSection(
     val colorScheme = MaterialTheme.colorScheme
 
     Text(
-        text = "Etkinliklerim",
+        text = stringResource(R.string.common_my_sessions),
         style = MaterialTheme.typography.titleMedium,
         color = colorScheme.onSurface
     )
@@ -466,7 +468,7 @@ private fun SessionsSection(
             shape = RoundedCornerShape(12.dp)
         ) {
             Text(
-                text = "Henüz etkinliğe katılmadınız",
+                text = stringResource(R.string.profile_henuz_etkinlige_katilmadiniz),
                 style = MaterialTheme.typography.bodyMedium,
                 color = colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(16.dp)
@@ -515,7 +517,7 @@ private fun SettingsSection(
     val unit = profile?.settings?.unit ?: "mpsas"
 
     Text(
-        text = "Ayarlar",
+        text = stringResource(R.string.common_settings),
         style = MaterialTheme.typography.titleMedium,
         color = colorScheme.onSurface
     )
@@ -525,7 +527,7 @@ private fun SettingsSection(
         shape = RoundedCornerShape(12.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("Tema", style = MaterialTheme.typography.labelMedium, color = colorScheme.onSurfaceVariant)
+            Text(stringResource(R.string.profile_tema), style = MaterialTheme.typography.labelMedium, color = colorScheme.onSurfaceVariant)
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 listOf("light" to "Gündüz", "dark" to "Astronomi", "auto" to "Otomatik").forEach { (value, label) ->
                     Row(
@@ -542,7 +544,7 @@ private fun SettingsSection(
                 }
             }
             Spacer(modifier = Modifier.height(8.dp))
-            Text("Birim", style = MaterialTheme.typography.labelMedium, color = colorScheme.onSurfaceVariant)
+            Text(stringResource(R.string.profile_birim), style = MaterialTheme.typography.labelMedium, color = colorScheme.onSurfaceVariant)
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 listOf("mpsas" to "MPSAS", "bortle" to "Bortle").forEach { (value, label) ->
                     Row(
@@ -568,7 +570,7 @@ private fun AppInfoSection(viewModel: ProfileViewModel) {
     val isDark = colorScheme.background.luminance() < 0.2f
 
     Text(
-        text = "Hakkında",
+        text = stringResource(R.string.profile_hakkinda),
         style = MaterialTheme.typography.titleMedium,
         color = colorScheme.onSurface
     )
@@ -587,10 +589,10 @@ private fun AppInfoSection(viewModel: ProfileViewModel) {
                 contentDescription = null,
                 modifier = Modifier.size(64.dp)
             )
-            Text("Baak Bilim ve Amatör Astronomi Kulübü katkılarıyla", style = MaterialTheme.typography.bodyMedium, color = colorScheme.onSurfaceVariant)
+            Text(stringResource(R.string.profile_baak_bilim_ve_amator_astronomi), style = MaterialTheme.typography.bodyMedium, color = colorScheme.onSurfaceVariant)
             Text("AstroNode v${com.baak.astronode.BuildConfig.VERSION_NAME}", style = MaterialTheme.typography.bodyLarge, color = colorScheme.onSurface)
             TextButton(onClick = { viewModel.openPrivacyPolicy() }) {
-                Text("Gizlilik Politikası", color = colorScheme.primary)
+                Text(stringResource(R.string.common_privacy_policy), color = colorScheme.primary)
             }
         }
     }
@@ -606,7 +608,7 @@ private fun DangerZoneSection(
     val colorScheme = MaterialTheme.colorScheme
 
     Text(
-        text = "Veri ve Hesap",
+        text = stringResource(R.string.profile_veri_ve_hesap),
         style = MaterialTheme.typography.titleMedium,
         color = colorScheme.onSurface
     )
@@ -615,15 +617,15 @@ private fun DangerZoneSection(
             onClick = onExport,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text("Ölçümlerimi Dışa Aktar (CSV)", color = colorScheme.primary)
+            Text(stringResource(R.string.profile_olcumlerimi_disa_aktar_csv), color = colorScheme.primary)
         }
         if (isLinkedWithGoogle) {
             TextButton(onClick = onSignOut, modifier = Modifier.fillMaxWidth()) {
-                Text("Çıkış Yap", color = colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.profile_cikis_yap), color = colorScheme.onSurfaceVariant)
             }
         }
         TextButton(onClick = onDeleteAccount, modifier = Modifier.fillMaxWidth()) {
-            Text("Hesabımı ve Verilerimi Sil", color = colorScheme.error)
+            Text(stringResource(R.string.profile_hesabimi_ve_verilerimi_sil), color = colorScheme.error)
         }
     }
 }
@@ -638,12 +640,12 @@ private fun EditDisplayNameDialog(
     val colorScheme = MaterialTheme.colorScheme
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Takma Ad Düzenle", color = colorScheme.onSurface) },
+        title = { Text(stringResource(R.string.profile_takma_ad_duzenle), color = colorScheme.onSurface) },
         text = {
             OutlinedTextField(
                 value = currentName,
                 onValueChange = onNameChange,
-                label = { Text("Takma ad") },
+                label = { Text(stringResource(R.string.profile_takma_ad)) },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 colors = OutlinedTextFieldDefaults.colors(
@@ -654,10 +656,10 @@ private fun EditDisplayNameDialog(
             )
         },
         confirmButton = {
-            TextButton(onClick = onConfirm) { Text("Kaydet", color = colorScheme.primary) }
+            TextButton(onClick = onConfirm) { Text(stringResource(R.string.common_save), color = colorScheme.primary) }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("İptal", color = colorScheme.onSurfaceVariant) }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_cancel), color = colorScheme.onSurfaceVariant) }
         },
         containerColor = colorScheme.surface
     )
@@ -672,7 +674,7 @@ private fun DeleteAccountDialog(
     val colorScheme = MaterialTheme.colorScheme
     AlertDialog(
         onDismissRequest = { if (!inProgress) onDismiss() },
-        title = { Text("Hesabı Kalıcı Olarak Sil", color = colorScheme.onSurface) },
+        title = { Text(stringResource(R.string.profile_hesabi_kalici_olarak_sil), color = colorScheme.onSurface) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(
@@ -687,12 +689,12 @@ private fun DeleteAccountDialog(
         },
         confirmButton = {
             TextButton(onClick = onConfirm, enabled = !inProgress) {
-                Text("Kalıcı Olarak Sil", color = colorScheme.error)
+                Text(stringResource(R.string.profile_kalici_olarak_sil), color = colorScheme.error)
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss, enabled = !inProgress) {
-                Text("İptal", color = colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.common_cancel), color = colorScheme.onSurfaceVariant)
             }
         },
         containerColor = colorScheme.surface
@@ -707,7 +709,7 @@ private fun AccountSwitchDialog(
     val colorScheme = MaterialTheme.colorScheme
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Bu Google hesabı zaten kayıtlı", color = colorScheme.onSurface) },
+        title = { Text(stringResource(R.string.profile_bu_google_hesabi_zaten_kayitli), color = colorScheme.onSurface) },
         text = {
             Text(
                 "Seçtiğiniz Google hesabı başka bir AstroNode hesabına bağlı. O hesaba geçerseniz, " +
@@ -718,12 +720,12 @@ private fun AccountSwitchDialog(
         },
         confirmButton = {
             TextButton(onClick = onConfirm) {
-                Text("Hesaba Geç", color = colorScheme.error)
+                Text(stringResource(R.string.profile_hesaba_gec), color = colorScheme.error)
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Vazgeç", color = colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.profile_vazgec), color = colorScheme.onSurfaceVariant)
             }
         },
         containerColor = colorScheme.surface
@@ -738,21 +740,21 @@ private fun SignOutDialog(
     val colorScheme = MaterialTheme.colorScheme
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Çıkış Yap", color = colorScheme.onSurface) },
+        title = { Text(stringResource(R.string.profile_cikis_yap), color = colorScheme.onSurface) },
         text = {
             Text(
-                "Google hesabınızdan çıkış yapacaksınız. Verileriniz Google hesabınızda kalır; tekrar giriş yaparak erişebilirsiniz.",
+                stringResource(R.string.profile_google_hesabinizdan_cikis_yapacaksiniz_verileriniz),
                 color = colorScheme.onSurfaceVariant
             )
         },
         confirmButton = {
             TextButton(onClick = onConfirm) {
-                Text("Çıkış Yap", color = colorScheme.error)
+                Text(stringResource(R.string.profile_cikis_yap), color = colorScheme.error)
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("İptal", color = colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.common_cancel), color = colorScheme.onSurfaceVariant)
             }
         },
         containerColor = colorScheme.surface

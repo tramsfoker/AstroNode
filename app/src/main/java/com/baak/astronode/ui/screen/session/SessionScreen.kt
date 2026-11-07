@@ -1,5 +1,9 @@
 package com.baak.astronode.ui.screen.session
 
+import com.baak.astronode.R
+
+import androidx.compose.ui.res.stringResource
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -108,12 +112,12 @@ fun SessionScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text("Etkinlik Seç", color = colorScheme.onBackground) },
+                title = { Text(stringResource(R.string.session_etkinlik_sec), color = colorScheme.onBackground) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Geri",
+                            contentDescription = stringResource(R.string.common_back),
                             tint = colorScheme.onBackground
                         )
                     }
@@ -126,7 +130,7 @@ fun SessionScreen(
                     IconButton(onClick = { showCreateDialog = true }) {
                         Icon(
                             Icons.Default.Add,
-                            contentDescription = "Yeni Etkinlik",
+                            contentDescription = stringResource(R.string.session_yeni_etkinlik),
                             tint = colorScheme.onBackground
                         )
                     }
@@ -152,18 +156,18 @@ fun SessionScreen(
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text(
-                            text = "Serbest Ölçüm",
+                            text = stringResource(R.string.common_free_measurement),
                             style = MaterialTheme.typography.titleMedium,
                             color = colorScheme.onBackground
                         )
                         Text(
-                            text = "Etkinliğe bağlı olmayan ölçüm",
+                            text = stringResource(R.string.session_etkinlige_bagli_olmayan_olcum),
                             style = MaterialTheme.typography.bodySmall,
                             color = colorScheme.onSurfaceVariant
                         )
                         if (selectedSession == null) {
                             Text(
-                                text = "✓ Seçili",
+                                text = stringResource(R.string.session_secili),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = colorScheme.primary,
                                 modifier = Modifier.padding(top = 4.dp)
@@ -177,12 +181,12 @@ fun SessionScreen(
                     onClick = { showJoinByCodeDialog = true },
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("Kodla Katıl")
+                    Text(stringResource(R.string.session_kodla_katil))
                 }
             }
             item {
                 Text(
-                    text = "Etkinliklerim",
+                    text = stringResource(R.string.common_my_sessions),
                     style = MaterialTheme.typography.titleSmall,
                     color = colorScheme.primary,
                     modifier = Modifier.padding(top = 8.dp)
@@ -203,7 +207,7 @@ fun SessionScreen(
             }
             item {
                 Text(
-                    text = "Herkese Açık Etkinlikler",
+                    text = stringResource(R.string.session_herkese_acik_etkinlikler),
                     style = MaterialTheme.typography.titleSmall,
                     color = colorScheme.primary,
                     modifier = Modifier.padding(top = 16.dp)
@@ -274,18 +278,18 @@ private fun JoinByCodeDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Kodla Katıl", color = colorScheme.onBackground) },
+        title = { Text(stringResource(R.string.session_kodla_katil), color = colorScheme.onBackground) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(
-                    text = "6 haneli etkinlik kodunu girin",
+                    text = stringResource(R.string.session_6_haneli_etkinlik_kodunu_girin),
                     style = MaterialTheme.typography.bodyMedium,
                     color = colorScheme.onSurfaceVariant
                 )
                 OutlinedTextField(
                     value = code,
                     onValueChange = { if (it.length <= 6) code = it.uppercase() },
-                    label = { Text("Kod", color = colorScheme.onSurfaceVariant) },
+                    label = { Text(stringResource(R.string.session_kod), color = colorScheme.onSurfaceVariant) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
@@ -305,12 +309,12 @@ private fun JoinByCodeDialog(
                 onClick = { onJoin(code.trim()) },
                 enabled = code.trim().length == 6
             ) {
-                Text("Katıl")
+                Text(stringResource(R.string.session_katil))
             }
         },
         dismissButton = {
             Button(onClick = onDismiss) {
-                Text("İptal")
+                Text(stringResource(R.string.common_cancel))
             }
         },
         containerColor = colorScheme.surface
@@ -358,7 +362,7 @@ private fun SessionDetailDialog(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text("Kod: ${session.code}", style = MaterialTheme.typography.bodyMedium, color = colorScheme.onSurface)
                         IconButton(onClick = { clipboardManager.setText(AnnotatedString(session.code)) }) {
-                            Icon(Icons.Default.ContentCopy, contentDescription = "Kopyala", tint = colorScheme.primary)
+                            Icon(Icons.Default.ContentCopy, contentDescription = stringResource(R.string.session_kopyala), tint = colorScheme.primary)
                         }
                     }
                 }
@@ -371,22 +375,22 @@ private fun SessionDetailDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     if (canJoin) {
-                        Button(onClick = onJoin) { Text("Katıl") }
+                        Button(onClick = onJoin) { Text(stringResource(R.string.session_katil)) }
                     }
                     if (isParticipant) {
-                        Button(onClick = onSelect) { Text("Seç") }
+                        Button(onClick = onSelect) { Text(stringResource(R.string.session_sec)) }
                     }
                     if (isParticipant && !isOrganizer) {
-                        OutlinedButton(onClick = onLeave) { Text("Ayrıl") }
+                        OutlinedButton(onClick = onLeave) { Text(stringResource(R.string.session_ayril)) }
                     }
                     if (isOrganizer) {
-                        Button(onClick = onEnd) { Text("Bitir") }
+                        Button(onClick = onEnd) { Text(stringResource(R.string.session_bitir)) }
                     }
                 }
             }
         },
         confirmButton = {
-            Button(onClick = onDismiss) { Text("Kapat") }
+            Button(onClick = onDismiss) { Text(stringResource(R.string.session_kapat)) }
         },
         dismissButton = null,
         containerColor = colorScheme.surface
@@ -448,7 +452,7 @@ private fun SessionItem(
                     IconButton(onClick = { showMenu = true }) {
                         Icon(
                             Icons.Default.MoreVert,
-                            contentDescription = "Seçenekler",
+                            contentDescription = stringResource(R.string.session_secenekler),
                             tint = colorScheme.onSurfaceVariant
                         )
                     }
@@ -457,21 +461,21 @@ private fun SessionItem(
                         onDismissRequest = { showMenu = false }
                     ) {
                         DropdownMenuItem(
-                            text = { Text("Etkinliği Bitir") },
+                            text = { Text(stringResource(R.string.session_etkinligi_bitir)) },
                             onClick = {
                                 onEndSession()
                                 showMenu = false
                             }
                         )
                         DropdownMenuItem(
-                            text = { Text("İptal Et") },
+                            text = { Text(stringResource(R.string.session_iptal_et)) },
                             onClick = {
                                 onCancelSession()
                                 showMenu = false
                             }
                         )
                         DropdownMenuItem(
-                            text = { Text("Sil") },
+                            text = { Text(stringResource(R.string.common_delete)) },
                             onClick = {
                                 onDeleteSession()
                                 showMenu = false
@@ -501,7 +505,7 @@ private fun SessionItem(
             )
             if (isSelected) {
                 Text(
-                    text = "✓ Bu etkinliğe katılıyorsunuz",
+                    text = stringResource(R.string.session_bu_etkinlige_katiliyorsunuz),
                     style = MaterialTheme.typography.labelSmall,
                     color = colorScheme.primary,
                     modifier = Modifier.padding(top = 4.dp)
@@ -512,7 +516,7 @@ private fun SessionItem(
                     onClick = onJoin,
                     modifier = Modifier.padding(top = 8.dp)
                 ) {
-                    Text("Katıl")
+                    Text(stringResource(R.string.session_katil))
                 }
             }
         }
@@ -540,25 +544,25 @@ private fun CreateSessionDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Yeni Etkinlik Oluştur", color = colorScheme.onBackground) },
+        title = { Text(stringResource(R.string.session_yeni_etkinlik_olustur), color = colorScheme.onBackground) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
-                    label = { Text("Etkinlik Adı", color = colorScheme.onSurfaceVariant) },
+                    label = { Text(stringResource(R.string.session_etkinlik_adi), color = colorScheme.onSurfaceVariant) },
                     modifier = Modifier.fillMaxWidth(),
                     colors = textFieldColors
                 )
                 OutlinedTextField(
                     value = description,
                     onValueChange = { description = it },
-                    label = { Text("Açıklama", color = colorScheme.onSurfaceVariant) },
+                    label = { Text(stringResource(R.string.session_aciklama), color = colorScheme.onSurfaceVariant) },
                     modifier = Modifier.fillMaxWidth(),
                     colors = textFieldColors
                 )
                 Text(
-                    text = "Etkinlik Tipi",
+                    text = stringResource(R.string.session_etkinlik_tipi),
                     style = MaterialTheme.typography.titleSmall,
                     color = colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 8.dp)
@@ -571,8 +575,8 @@ private fun CreateSessionDialog(
                             colors = RadioButtonDefaults.colors(selectedColor = colorScheme.primary)
                         )
                         Column(modifier = Modifier.padding(start = 8.dp)) {
-                            Text("🌍 Herkese Açık", style = MaterialTheme.typography.bodyMedium, color = colorScheme.onSurface)
-                            Text("Herkes listede görür, kodla katılır", style = MaterialTheme.typography.bodySmall, color = colorScheme.onSurfaceVariant)
+                            Text(stringResource(R.string.session_herkese_acik), style = MaterialTheme.typography.bodyMedium, color = colorScheme.onSurface)
+                            Text(stringResource(R.string.session_herkes_listede_gorur_kodla_katilir), style = MaterialTheme.typography.bodySmall, color = colorScheme.onSurfaceVariant)
                         }
                     }
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -582,8 +586,8 @@ private fun CreateSessionDialog(
                             colors = RadioButtonDefaults.colors(selectedColor = colorScheme.primary)
                         )
                         Column(modifier = Modifier.padding(start = 8.dp)) {
-                            Text("🔒 Gizli (Kodlu)", style = MaterialTheme.typography.bodyMedium, color = colorScheme.onSurface)
-                            Text("Listede görünmez, sadece kodu bilenler katılır", style = MaterialTheme.typography.bodySmall, color = colorScheme.onSurfaceVariant)
+                            Text(stringResource(R.string.session_gizli_kodlu), style = MaterialTheme.typography.bodyMedium, color = colorScheme.onSurface)
+                            Text(stringResource(R.string.session_listede_gorunmez_sadece_kodu_bilenler), style = MaterialTheme.typography.bodySmall, color = colorScheme.onSurfaceVariant)
                         }
                     }
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -593,8 +597,8 @@ private fun CreateSessionDialog(
                             colors = RadioButtonDefaults.colors(selectedColor = colorScheme.primary)
                         )
                         Column(modifier = Modifier.padding(start = 8.dp)) {
-                            Text("📨 Davetli", style = MaterialTheme.typography.bodyMedium, color = colorScheme.onSurface)
-                            Text("Listede görünmez, sadece organizatör ekleyebilir", style = MaterialTheme.typography.bodySmall, color = colorScheme.onSurfaceVariant)
+                            Text(stringResource(R.string.session_davetli), style = MaterialTheme.typography.bodyMedium, color = colorScheme.onSurface)
+                            Text(stringResource(R.string.session_listede_gorunmez_sadece_organizator_ekleyebilir), style = MaterialTheme.typography.bodySmall, color = colorScheme.onSurfaceVariant)
                         }
                     }
                 }
@@ -605,12 +609,12 @@ private fun CreateSessionDialog(
                 onClick = { onCreate(name.trim(), description.trim().takeIf { it.isNotBlank() }, selectedType) },
                 enabled = name.isNotBlank()
             ) {
-                Text("Oluştur")
+                Text(stringResource(R.string.session_olustur))
             }
         },
         dismissButton = {
             Button(onClick = onDismiss) {
-                Text("İptal")
+                Text(stringResource(R.string.common_cancel))
             }
         },
         containerColor = colorScheme.surface

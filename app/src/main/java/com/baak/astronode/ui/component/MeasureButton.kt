@@ -1,5 +1,9 @@
 package com.baak.astronode.ui.component
 
+import com.baak.astronode.R
+
+import androidx.compose.ui.res.stringResource
+
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
@@ -44,7 +48,7 @@ fun MeasureButton(
             )
         } else {
             Text(
-                text = "ÖLÇÜM YAP",
+                text = stringResource(R.string.measure_button_olcum_yap),
                 fontSize = 20.sp,
                 fontWeight = FontWeight.ExtraBold,
                 letterSpacing = 2.sp,

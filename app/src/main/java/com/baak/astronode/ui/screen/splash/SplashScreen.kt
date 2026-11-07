@@ -1,5 +1,7 @@
 package com.baak.astronode.ui.screen.splash
 
+import androidx.compose.ui.res.stringResource
+
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.tasks.await
 import androidx.compose.animation.core.animateFloatAsState
@@ -84,7 +86,7 @@ fun SplashScreen(
         )
         Spacer(modifier = Modifier.height(24.dp))
         Text(
-            text = "BAAK BİLİM KULÜBÜ",
+            text = stringResource(R.string.splash_baak_bilim_kulubu),
             style = androidx.compose.material3.MaterialTheme.typography.titleMedium.copy(
                 fontWeight = FontWeight.SemiBold
             ),

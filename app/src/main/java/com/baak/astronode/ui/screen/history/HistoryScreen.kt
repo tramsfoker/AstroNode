@@ -1,5 +1,9 @@
 package com.baak.astronode.ui.screen.history
 
+import com.baak.astronode.R
+
+import androidx.compose.ui.res.stringResource
+
 import android.content.Intent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -102,7 +106,7 @@ fun HistoryScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Geçmiş Ölçümler", color = colorScheme.onBackground) },
+                title = { Text(stringResource(R.string.history_gecmis_olcumler), color = colorScheme.onBackground) },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = colorScheme.surface,
                     titleContentColor = colorScheme.onBackground
@@ -120,7 +124,7 @@ fun HistoryScreen(
                         } else {
                             Icon(
                                 Icons.Default.Share,
-                                contentDescription = "Dışa Aktar",
+                                contentDescription = stringResource(R.string.history_disa_aktar),
                                 tint = colorScheme.onBackground
                             )
                         }
@@ -224,11 +228,11 @@ fun HistoryScreen(
             measurementToDelete?.let { m ->
                 AlertDialog(
                     onDismissRequest = { measurementToDelete = null },
-                    title = { Text("Ölçümü Sil", color = colorScheme.onSurface) },
+                    title = { Text(stringResource(R.string.history_olcumu_sil), color = colorScheme.onSurface) },
                     text = {
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Text(
-                                "Bu ölçümü silmek istediğinize emin misiniz?",
+                                stringResource(R.string.history_bu_olcumu_silmek_istediginize_emin),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = colorScheme.onSurfaceVariant
                             )
@@ -238,7 +242,7 @@ fun HistoryScreen(
                                 color = colorScheme.onSurface
                             )
                             Text(
-                                "Bu işlem geri alınamaz.",
+                                stringResource(R.string.history_bu_islem_geri_alinamaz),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = colorScheme.onSurfaceVariant
                             )
@@ -251,12 +255,12 @@ fun HistoryScreen(
                                 measurementToDelete = null
                             }
                         ) {
-                            Text("Sil")
+                            Text(stringResource(R.string.common_delete))
                         }
                     },
                     dismissButton = {
                         TextButton(onClick = { measurementToDelete = null }) {
-                            Text("İptal")
+                            Text(stringResource(R.string.common_cancel))
                         }
                     },
                     containerColor = colorScheme.surface
@@ -313,7 +317,7 @@ private fun SearchBar(
                 decorationBox = { inner ->
                     if (query.isEmpty()) {
                         Text(
-                            text = "Notlarda ara...",
+                            text = stringResource(R.string.history_notlarda_ara),
                             style = MaterialTheme.typography.bodyLarge,
                             color = colorScheme.onSurfaceVariant
                         )
@@ -379,14 +383,14 @@ private fun FilterSection(
                     modifier = Modifier.background(colorScheme.surface)
                 ) {
                     DropdownMenuItem(
-                        text = { Text("Tüm Etkinlikler", color = colorScheme.onSurface) },
+                        text = { Text(stringResource(R.string.common_all_sessions), color = colorScheme.onSurface) },
                         onClick = {
                             onSessionFilter(null)
                             sessionMenuExpanded = false
                         }
                     )
                     DropdownMenuItem(
-                        text = { Text("Serbest Ölçüm", color = colorScheme.onSurface) },
+                        text = { Text(stringResource(R.string.common_free_measurement), color = colorScheme.onSurface) },
                         onClick = {
                             onSessionFilter(SESSION_FREE)
                             sessionMenuExpanded = false
@@ -429,7 +433,7 @@ private fun FilterSection(
                 IconButton(onClick = { sortMenuExpanded = true }) {
                     Icon(
                         Icons.AutoMirrored.Filled.Sort,
-                        contentDescription = "Sırala",
+                        contentDescription = stringResource(R.string.history_sirala),
                         tint = colorScheme.onSurface
                     )
                 }
@@ -577,7 +581,7 @@ private fun MeasurementItem(
                         color = colorScheme.errorContainer
                     ) {
                         Text(
-                            text = "☀️ Gündüz",
+                            text = stringResource(R.string.history_gunduz),
                             style = MaterialTheme.typography.labelSmall,
                             color = colorScheme.onErrorContainer,
                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
@@ -591,7 +595,7 @@ private fun MeasurementItem(
                         color = colorScheme.surfaceVariant
                     ) {
                         Text(
-                            text = "🧪 TEST",
+                            text = stringResource(R.string.history_test),
                             style = MaterialTheme.typography.labelSmall,
                             color = colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
@@ -617,7 +621,7 @@ private fun MeasurementItem(
                     ) {
                         Icon(
                             imageVector = Icons.Default.Delete,
-                            contentDescription = "Sil",
+                            contentDescription = stringResource(R.string.common_delete),
                             tint = colorScheme.onSurfaceVariant
                         )
                     }

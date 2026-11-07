@@ -1,5 +1,7 @@
 package com.baak.astronode.ui.screen.home
 
+import androidx.compose.ui.res.stringResource
+
 import android.content.Intent
 import android.os.Build
 import android.os.VibrationEffect
@@ -185,7 +187,7 @@ fun HomeScreen(
             IconButton(onClick = onNavigateToProfile) {
                 Icon(
                     imageVector = Icons.Default.Person,
-                    contentDescription = "Profil",
+                    contentDescription = stringResource(R.string.home_profil),
                     tint = colorScheme.onSurface
                 )
             }
@@ -223,7 +225,7 @@ fun HomeScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "✓ Senkronize edildi",
+                        text = stringResource(R.string.home_senkronize_edildi),
                         style = MaterialTheme.typography.bodySmall,
                         color = successOnColor
                     )
@@ -287,7 +289,7 @@ fun HomeScreen(
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Text(
-                text = "Yönelim Verisini Ekle",
+                text = stringResource(R.string.home_yonelim_verisini_ekle),
                 style = MaterialTheme.typography.bodyMedium,
                 color = colorScheme.onSurfaceVariant
             )
@@ -328,7 +330,7 @@ fun HomeScreen(
             WeatherWidgetCard(weatherWidget = weatherWidget)
             if (showGpsWarning) {
                 Text(
-                    text = "GPS kapalı, lütfen açın",
+                    text = stringResource(R.string.home_gps_kapali_lutfen_acin),
                     style = MaterialTheme.typography.bodySmall,
                     color = colorScheme.error,
                     modifier = Modifier.clickable {
@@ -347,7 +349,7 @@ fun HomeScreen(
             OutlinedTextField(
                 value = noteText,
                 onValueChange = { noteText = it },
-                label = { Text("Not ekle... (opsiyonel)") },
+                label = { Text(stringResource(R.string.home_not_ekle_opsiyonel)) },
                 modifier = Modifier.weight(1f),
                 shape = RoundedCornerShape(12.dp),
                 colors = OutlinedTextFieldDefaults.colors(
@@ -370,7 +372,7 @@ fun HomeScreen(
                 )
             )
             Text(
-                text = "Test ölçümü",
+                text = stringResource(R.string.home_test_olcumu),
                 style = MaterialTheme.typography.bodySmall,
                 color = colorScheme.onSurfaceVariant
             )
@@ -395,7 +397,7 @@ fun HomeScreen(
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 Text(
-                    text = "Son Ölçüm",
+                    text = stringResource(R.string.home_son_olcum),
                     style = MaterialTheme.typography.titleMedium,
                     color = colorScheme.onSurface
                 )
@@ -440,7 +442,7 @@ fun HomeScreen(
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        "Gündüz yapılan SQM ölçümleri bilimsel olarak geçersizdir. Yine de devam etmek ister misiniz?",
+                        stringResource(R.string.home_gunduz_yapilan_sqm_olcumleri_bilimsel),
                         style = MaterialTheme.typography.bodySmall,
                         color = colorScheme.onSurfaceVariant
                     )
@@ -450,12 +452,12 @@ fun HomeScreen(
                 TextButton(onClick = {
                     viewModel.onConfirmDaytimeTest(note)
                 }) {
-                    Text("Test Olarak Ölç", color = colorScheme.primary)
+                    Text(stringResource(R.string.home_test_olarak_olc), color = colorScheme.primary)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { viewModel.onDismissDaytimeWarning() }) {
-                    Text("İptal", color = colorScheme.onSurfaceVariant)
+                    Text(stringResource(R.string.common_cancel), color = colorScheme.onSurfaceVariant)
                 }
             },
             containerColor = colorScheme.surface
@@ -465,18 +467,18 @@ fun HomeScreen(
     if (needsProfileSetup) {
         AlertDialog(
             onDismissRequest = { },
-            title = { Text("Hoş geldiniz!", color = colorScheme.onSurface) },
+            title = { Text(stringResource(R.string.home_hos_geldiniz), color = colorScheme.onSurface) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text(
-                        "Takma adınızı girin:",
+                        stringResource(R.string.home_takma_adinizi_girin),
                         style = MaterialTheme.typography.bodyMedium,
                         color = colorScheme.onSurfaceVariant
                     )
                     OutlinedTextField(
                         value = nickname,
                         onValueChange = { nickname = it },
-                        label = { Text("Örn. Hakan Y.") },
+                        label = { Text(stringResource(R.string.home_orn_hakan_y)) },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
                         colors = OutlinedTextFieldDefaults.colors(
@@ -502,7 +504,7 @@ fun HomeScreen(
                     },
                     enabled = nickname.trim().isNotBlank()
                 ) {
-                    Text("Devam Et")
+                    Text(stringResource(R.string.home_devam_et))
                 }
             },
             containerColor = colorScheme.surface

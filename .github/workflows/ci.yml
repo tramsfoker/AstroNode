@@ -25,6 +25,12 @@ jobs:
         run: ./gradlew --no-daemon assembleDebug testDebugUnitTest lintDebug
       - name: Release derlemesi (R8 doğrulaması, imzasız)
         run: ./gradlew --no-daemon assembleRelease -x uploadCrashlyticsMappingFileRelease
+      - name: Debug APK (telefona kurmak için)
+        uses: actions/upload-artifact@v4
+        with:
+          name: astronode-debug-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 14
       - name: Raporları yükle
         if: always()
         uses: actions/upload-artifact@v4
