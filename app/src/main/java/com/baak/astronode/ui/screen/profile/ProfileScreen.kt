@@ -109,6 +109,14 @@ fun ProfileScreen(
         }
     }
 
+    val profileErrorRes by viewModel.errorRes.collectAsStateWithLifecycle()
+    LaunchedEffect(profileErrorRes) {
+        profileErrorRes?.let { res ->
+            snackbarHostState.showSnackbar(context.getString(res), duration = SnackbarDuration.Short)
+            viewModel.clearErrorRes()
+        }
+    }
+
     LaunchedEffect(exportUri) {
         exportUri?.let { uri ->
             val shareIntent = Intent(Intent.ACTION_SEND).apply {
@@ -170,6 +178,16 @@ fun ProfileScreen(
             SessionsSection(
                 sessions = sessions,
                 onSessionClick = { onNavigateToAnalysis(it.id) }
+            )
+
+            // C2) Organizasyon
+            val orgRequests by viewModel.organizationRequests.collectAsStateWithLifecycle()
+            OrganizationSection(
+                role = profile?.role,
+                organizationName = profile?.organizationName,
+                requests = orgRequests,
+                defaultEmail = currentUserEmail,
+                onSubmit = viewModel::submitOrganizationRequest
             )
 
             // D) Ayarlar

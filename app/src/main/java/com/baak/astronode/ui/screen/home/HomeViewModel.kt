@@ -149,6 +149,10 @@ class HomeViewModel @Inject constructor(
     val usbConnectionState: StateFlow<UsbConnectionState> = sqmUsbManager.connectionState
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), UsbConnectionState.DISCONNECTED)
 
+    val hasLocationPermission: StateFlow<Boolean> = locationProvider.hasPermission
+
+    fun onLocationPermissionResult() = locationProvider.onPermissionResult()
+
     val locationState: StateFlow<LocationData?> = locationProvider.location
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 

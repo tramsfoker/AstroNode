@@ -45,8 +45,22 @@ data class MapRegion(
 class MapViewModel @Inject constructor(
     private val firestoreManager: FirestoreManager,
     private val locationProvider: LocationProvider,
+    private val contentRepository: com.baak.astronode.data.content.ContentRepository,
+    private val authManager: com.baak.astronode.data.firebase.FirebaseAuthManager,
     networkMonitor: NetworkMonitor
 ) : ViewModel() {
+
+    val currentUid: String? get() = authManager.currentUid
+
+    /** Ölçümü bildir (Play UGC politikası) */
+    fun report(measurementId: String, reason: String, details: String?) {
+        viewModelScope.launch {
+            val uid = authManager.uidOrNull() ?: return@launch
+            contentRepository.submitReport(uid, "measurement", measurementId, reason, details)
+                .onSuccess { _error.value = "Bildirimin alındı, teşekkürler" }
+                .onFailure { _error.value = "Bildirim gönderilemedi" }
+        }
+    }
 
     val isOnline = networkMonitor.isOnline
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)

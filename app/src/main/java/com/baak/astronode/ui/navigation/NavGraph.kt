@@ -1,5 +1,10 @@
 package com.baak.astronode.ui.navigation
 
+import androidx.compose.material.icons.filled.Explore
+import androidx.compose.ui.res.stringResource
+import com.baak.astronode.R
+import com.baak.astronode.ui.screen.discover.DiscoverScreen
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -46,6 +51,7 @@ object Routes {
     const val SESSION = "session"
     const val SETTINGS = "settings"
     const val PROFILE = "profile"
+    const val DISCOVER = "discover"
 }
 
 @Composable
@@ -54,7 +60,7 @@ fun NavGraph() {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
-    val showBottomNav = currentRoute in listOf(Routes.HOME, Routes.MAP, Routes.ANALYSIS, Routes.HISTORY) ||
+    val showBottomNav = currentRoute in listOf(Routes.HOME, Routes.MAP, Routes.DISCOVER, Routes.ANALYSIS, Routes.HISTORY) ||
         currentRoute?.startsWith(Routes.MAP) == true
 
     Scaffold(
@@ -72,6 +78,7 @@ fun NavGraph() {
                     listOf(
                         Triple(Routes.HOME, Icons.Default.Science, "Ölçüm"),
                         Triple(Routes.MAP, Icons.Default.Map, "Harita"),
+                        Triple(Routes.DISCOVER, Icons.Default.Explore, stringResource(R.string.nav_discover)),
                         Triple(Routes.ANALYSIS, Icons.Default.BarChart, "Analiz"),
                         Triple(Routes.HISTORY, Icons.Default.History, "Geçmiş")
                     ).forEach { (route, icon, label) ->
@@ -148,6 +155,9 @@ fun NavGraph() {
             }
             composable(Routes.ANALYSIS) {
                 AnalysisScreen()
+            }
+            composable(Routes.DISCOVER) {
+                DiscoverScreen(onShowOnMap = { lat, lng -> navController.navigate("map/$lat/$lng") })
             }
             composable(
                 route = Routes.MAP_FOCUS,

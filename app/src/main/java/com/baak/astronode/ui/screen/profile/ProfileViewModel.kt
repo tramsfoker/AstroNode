@@ -47,6 +47,7 @@ class ProfileViewModel @Inject constructor(
     private val firebaseAuthManager: FirebaseAuthManager,
     private val firestoreManager: FirestoreManager,
     private val googleCredentialHelper: GoogleCredentialHelper,
+    private val contentRepository: com.baak.astronode.data.content.ContentRepository,
     private val exportDataUseCase: ExportDataUseCase,
     private val themePreference: ThemePreference,
     @ApplicationContext private val context: Context
@@ -76,6 +77,35 @@ class ProfileViewModel @Inject constructor(
     private val myMeasurements: StateFlow<List<SkyMeasurement>> = firebaseAuthManager.uid
         .flatMapLatest { u -> if (u != null) firestoreManager.getMyMeasurements(u) else flowOf(emptyList()) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val organizationRequests: StateFlow<List<com.baak.astronode.core.model.OrganizationRequest>> = firebaseAuthManager.uid
+        .flatMapLatest { u -> if (u != null) contentRepository.getMyOrganizationRequests(u) else flowOf(emptyList()) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    /** Organizatör başvurusu. Başarılıysa true döner (diyalog kapanır). */
+    suspend fun submitOrganizationRequest(
+        orgName: String, city: String, website: String, email: String, description: String
+    ): Boolean {
+        val u = firebaseAuthManager.uidOrNull() ?: return false
+        val emailOk = Regex("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$").matches(email.trim())
+        if (orgName.trim().length < 3 || !emailOk) {
+            _errorRes.value = com.baak.astronode.R.string.org_invalid
+            return false
+        }
+        return contentRepository.submitOrganizationRequest(
+            uid = u,
+            requesterName = userProfile.value?.displayName,
+            orgName = orgName, description = description, city = city, website = website, contactEmail = email
+        ).fold(
+            onSuccess = { _errorRes.value = com.baak.astronode.R.string.org_submitted; true },
+            onFailure = { _error.value = it.message; false }
+        )
+    }
+
+    /** Kaynak kimliği ile mesaj (çok dilli) */
+    private val _errorRes = MutableStateFlow<Int?>(null)
+    val errorRes: StateFlow<Int?> = _errorRes.asStateFlow()
+    fun clearErrorRes() { _errorRes.value = null }
 
     private val _exportUri = MutableStateFlow<Uri?>(null)
     val exportUri: StateFlow<Uri?> = _exportUri.asStateFlow()

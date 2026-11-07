@@ -71,4 +71,40 @@ class WeatherService @Inject constructor() {
             }
         }
     }
+
+    /**
+     * Bu gecenin (20:00–04:00 yerel) ortalama bulut örtüsü tahmini (%). Hata/çevrimdışı → null.
+     * Konum ~1 km'ye yuvarlanarak gönderilir.
+     */
+    suspend fun getTonightCloudCover(lat: Double, lng: Double): Int? = withContext(Dispatchers.IO) {
+        try {
+            val url = "https://api.open-meteo.com/v1/forecast" +
+                "?latitude=${"%.2f".format(java.util.Locale.US, lat)}&longitude=${"%.2f".format(java.util.Locale.US, lng)}" +
+                "&hourly=cloud_cover&forecast_days=2&timezone=auto&timeformat=unixtime"
+            val body = client.newCall(Request.Builder().url(url).build()).execute().use { r ->
+                if (!r.isSuccessful) return@withContext null
+                r.body?.string()
+            } ?: return@withContext null
+            val json = JSONObject(body)
+            val offsetSec = json.optInt("utc_offset_seconds", 0)
+            val hourly = json.optJSONObject("hourly") ?: return@withContext null
+            val times = hourly.optJSONArray("time") ?: return@withContext null
+            val clouds = hourly.optJSONArray("cloud_cover") ?: return@withContext null
+            val nowSec = System.currentTimeMillis() / 1000 - 3600
+            val values = mutableListOf<Int>()
+            for (i in 0 until minOf(times.length(), clouds.length())) {
+                val t = times.optLong(i)
+                if (t < nowSec) continue
+                val localHour = (((t + offsetSec) % 86_400) / 3600).toInt()
+                if (localHour >= 20 || localHour < 4) {
+                    values += clouds.optInt(i, -1).takeIf { it >= 0 } ?: continue
+                    if (values.size >= 8) break
+                } else if (values.isNotEmpty()) break // gece bitti
+            }
+            values.takeIf { it.isNotEmpty() }?.average()?.toInt()
+        } catch (e: Exception) {
+            Log.w("WEATHER", "Gece tahmini alınamadı: ${e.message}")
+            null
+        }
+    }
 }

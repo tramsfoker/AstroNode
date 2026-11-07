@@ -1,5 +1,10 @@
 package com.baak.astronode.ui.screen.map
 
+import com.google.maps.android.compose.TileOverlay
+import androidx.compose.ui.res.stringResource
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.material3.TextButton
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -155,6 +160,9 @@ fun MapScreen(
     }
 
     var clusterManager by remember { mutableStateOf<ClusterManager<MeasurementClusterItem>?>(null) }
+    var showNightLights by rememberSaveable { mutableStateOf(false) }
+    val nightLightsProvider = remember { NightLightsTileProvider() }
+    var reportTarget by remember { mutableStateOf<SkyMeasurement?>(null) }
 
     val colorScheme = MaterialTheme.colorScheme
     Scaffold(
@@ -172,6 +180,9 @@ fun MapScreen(
             properties = mapProperties,
             uiSettings = mapUiSettings
         ) {
+            if (showNightLights) {
+                TileOverlay(tileProvider = nightLightsProvider, transparency = 0.35f, zIndex = -1f)
+            }
             MapEffect(measurements) { googleMap ->
                 val manager = clusterManager
                 if (manager == null) {
@@ -206,25 +217,24 @@ fun MapScreen(
                 colors = CardDefaults.cardColors(containerColor = colorScheme.surfaceVariant),
                 modifier = Modifier.padding(horizontal = 8.dp)
             ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "Test ölçümlerini göster",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = colorScheme.onSurfaceVariant
-                    )
-                    Switch(
+                Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)) {
+                    MapToggleRow(
+                        label = stringResource(R.string.map_show_tests),
                         checked = showTestMeasurements,
-                        onCheckedChange = { viewModel.onShowTestMeasurementsToggle(it) },
-                        colors = SwitchDefaults.colors(
-                            checkedThumbColor = colorScheme.primary,
-                            checkedTrackColor = colorScheme.surfaceVariant,
-                            uncheckedThumbColor = colorScheme.outline,
-                            uncheckedTrackColor = colorScheme.surface
-                        )
+                        onCheckedChange = { viewModel.onShowTestMeasurementsToggle(it) }
                     )
+                    MapToggleRow(
+                        label = stringResource(R.string.map_light_layer),
+                        checked = showNightLights,
+                        onCheckedChange = { showNightLights = it }
+                    )
+                    if (showNightLights) {
+                        Text(
+                            text = stringResource(R.string.map_light_attribution),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             }
         }
@@ -305,14 +315,54 @@ fun MapScreen(
                 colors = CardDefaults.cardColors(containerColor = colorScheme.surfaceVariant),
                 onClick = { selectedMeasurement = null }
             ) {
-                Text(
-                    text = formatInfoWindow(m),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = colorScheme.onSurface,
-                    modifier = Modifier.padding(16.dp)
-                )
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        text = formatInfoWindow(m),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = colorScheme.onSurface
+                    )
+                    if (m.observerUid != viewModel.currentUid) {
+                        TextButton(onClick = { reportTarget = m }, modifier = Modifier.align(Alignment.End)) {
+                            Text(stringResource(R.string.news_report), color = colorScheme.error)
+                        }
+                    }
+                }
             }
         }
+
+        reportTarget?.let { target ->
+            com.baak.astronode.ui.component.ReportDialog(
+                onSubmit = { reason, details ->
+                    viewModel.report(target.id, reason, details)
+                    reportTarget = null
+                    selectedMeasurement = null
+                },
+                onDismiss = { reportTarget = null }
+            )
+        }
     }
+    }
+}
+
+@Composable
+private fun MapToggleRow(label: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+    val colorScheme = MaterialTheme.colorScheme
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodySmall,
+            color = colorScheme.onSurfaceVariant,
+            modifier = Modifier.weight(1f, fill = false)
+        )
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            colors = SwitchDefaults.colors(
+                checkedThumbColor = colorScheme.primary,
+                checkedTrackColor = colorScheme.surfaceVariant,
+                uncheckedThumbColor = colorScheme.outline,
+                uncheckedTrackColor = colorScheme.surface
+            )
+        )
     }
 }

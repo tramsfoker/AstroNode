@@ -256,6 +256,13 @@ fun HomeScreen(
             color = colorScheme.onSurfaceVariant
         )
 
+        // Konum izni (yoksa sistem iznini ister / açıklama kartı)
+        val hasLocationPerm by viewModel.hasLocationPermission.collectAsStateWithLifecycle()
+        com.baak.astronode.ui.component.LocationPermissionGate(
+            hasPermission = hasLocationPerm,
+            onPermissionResult = { viewModel.onLocationPermissionResult() }
+        )
+
         // USB bağlantı rozeti
         ConnectionBadge(
             state = usbState,
@@ -297,16 +304,7 @@ fun HomeScreen(
         }
 
         // Konum göstergesi
-        val hasLocationPermission = context.let { ctx ->
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    android.content.pm.PackageManager.PERMISSION_GRANTED ==
-                        ctx.checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION)
-                } else {
-                    @Suppress("DEPRECATION")
-                    android.content.pm.PackageManager.PERMISSION_GRANTED ==
-                        ctx.checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION)
-                }
-            }
+        val hasLocationPermission = hasLocationPerm
         val locationText = locationData?.let {
             String.format("\uD83D\uDCCD %.4f, %.4f", it.lat, it.lng)
         } ?: if (hasLocationPermission) "\uD83D\uDCCD Konum alınıyor..." else "\uD83D\uDCCD Konum izni gerekli"

@@ -135,6 +135,9 @@ dependencies {
     // OkHttp
     implementation(libs.okhttp)
 
+    // Görsel yükleme (haber görselleri)
+    implementation(libs.coil.compose)
+
     // Coroutines
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.kotlinx.coroutines.android)
