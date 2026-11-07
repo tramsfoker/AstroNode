@@ -1,0 +1,229 @@
+rules_version = '2';
+
+// AstroNode Firestore güvenlik kuralları
+// Tek yetki kaynağı burasıdır: istemci tarafındaki kontroller sadece kullanıcı deneyimi içindir.
+// Roller custom claims ile gelir (request.auth.token.admin) — kullanıcı belgesindeki "role" alanına güvenilmez.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---------- Yardımcı fonksiyonlar ----------
+    function signedIn() { return request.auth != null; }
+    function uid() { return request.auth.uid; }
+    function isAdmin() { return signedIn() && request.auth.token.get('admin', false) == true; }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    function changedKeys() { return request.resource.data.diff(resource.data).affectedKeys(); }
+
+    function isStr(v, minLen, maxLen) { return v is string && v.size() >= minLen && v.size() <= maxLen; }
+    function isOptStr(v, maxLen) { return v == null || (v is string && v.size() <= maxLen); }
+    function isOptNum(v) { return v == null || v is number; }
+
+    function docPath(coll, id) { return /databases/$(database)/documents/$(coll)/$(id); }
+
+    // ---------- users/{uid} ----------
+    // Sadece sahibi okur/yazar. Rol, organizasyon ve oluşturulma tarihi istemciden değiştirilemez.
+    match /users/{userId} {
+      function userKeys() {
+        return ['display_name', 'email', 'role', 'organization_id', 'organization_name',
+                'total_measurements', 'total_sessions', 'best_mpsas',
+                'created_at', 'last_active_at', 'settings', 'show_name_on_map'];
+      }
+
+      function validCommon(d) {
+        return d.keys().hasOnly(userKeys())
+          && isOptStr(d.get('display_name', null), 40)
+          && isOptStr(d.get('email', null), 254)
+          && isOptNum(d.get('best_mpsas', null))
+          && (!('best_mpsas' in d) || d.best_mpsas == null || (d.best_mpsas >= 0 && d.best_mpsas <= 25))
+          && (!('settings' in d) || d.settings is map)
+          && (!('show_name_on_map' in d) || d.show_name_on_map is bool);
+      }
+
+      // Sayaçlar sadece aynı kalabilir ya da 1 artabilir (Faz 2'de Cloud Function'a taşınacak)
+      function counterOk(field) {
+        return incoming().get(field, 0) == existing().get(field, 0)
+          || incoming().get(field, 0) == existing().get(field, 0) + 1;
+      }
+
+      allow get: if signedIn() && (uid() == userId || isAdmin());
+      allow list: if isAdmin();
+
+      allow create: if signedIn() && uid() == userId
+        && validCommon(incoming())
+        && incoming().get('role', 'observer') == 'observer'
+        && incoming().get('organization_id', null) == null
+        && incoming().get('organization_name', null) == null
+        && incoming().get('total_measurements', 0) == 0
+        && incoming().get('total_sessions', 0) == 0;
+
+      allow update: if signedIn() && uid() == userId
+        && validCommon(incoming())
+        && !changedKeys().hasAny(['role', 'organization_id', 'organization_name', 'created_at'])
+        && counterOk('total_measurements')
+        && counterOk('total_sessions');
+
+      allow delete: if signedIn() && (uid() == userId || isAdmin());
+    }
+
+    // ---------- session_codes/{code} ----------
+    // Kod → etkinlik eşlemesi. Belge kimliği kod olduğu için benzersizlik garanti.
+    // list kapalı: kodlar taranamaz, sadece bilinen kod ile get yapılabilir.
+    match /session_codes/{code} {
+      allow get: if signedIn();
+      allow list: if false;
+      allow create: if signedIn()
+        && code.matches('^[A-HJ-NP-Z2-9]{6}$')
+        && incoming().keys().hasOnly(['session_id', 'created_by'])
+        && incoming().created_by == uid()
+        && isStr(incoming().session_id, 1, 128)
+        && getAfter(docPath('sessions', incoming().session_id)).data.created_by == uid()
+        && getAfter(docPath('sessions', incoming().session_id)).data.code == code;
+      allow update: if false;
+      allow delete: if signedIn() && (existing().created_by == uid() || isAdmin());
+    }
+
+    // ---------- sessions/{sessionId} ----------
+    match /sessions/{sessionId} {
+      function sessionKeys() {
+        return ['name', 'description', 'date', 'organizer_name', 'participant_count', 'created_by',
+                'is_Active', 'status', 'type', 'participant_ids', 'code', 'ended_at'];
+      }
+      function validType(t) { return t in ['public', 'private', 'invite_only']; }
+      function validStatus(s) { return s in ['active', 'completed', 'cancelled']; }
+
+      function validEditable(d) {
+        return isStr(d.name, 1, 80)
+          && isOptStr(d.get('description', null), 500)
+          && isOptStr(d.get('organizer_name', null), 60)
+          && validType(d.type)
+          && validStatus(d.status)
+          && d.is_Active is bool
+          && (d.is_Active == (d.status == 'active'));
+      }
+
+      function isOwner() { return signedIn() && existing().created_by == uid(); }
+      function participants() { return existing().get('participant_ids', []); }
+
+      // Katılımcı sadece kendini ekler
+      function isSelfJoin() {
+        return changedKeys().hasOnly(['participant_ids', 'participant_count'])
+          && existing().is_Active == true
+          && existing().get('type', 'public') != 'invite_only'
+          && !(uid() in participants())
+          && incoming().participant_ids == participants().concat([uid()])
+          && incoming().participant_count == incoming().participant_ids.size();
+      }
+
+      // Katılımcı sadece kendini çıkarır (organizatör kendi etkinliğinden ayrılamaz, bitirir)
+      function isSelfLeave() {
+        return changedKeys().hasOnly(['participant_ids', 'participant_count'])
+          && uid() in participants()
+          && existing().created_by != uid()
+          && incoming().participant_ids == participants().removeAll([uid()])
+          && incoming().participant_count == incoming().participant_ids.size();
+      }
+
+      function isOwnerEdit() {
+        return isOwner()
+          && !changedKeys().hasAny(['created_by', 'code', 'date'])
+          && incoming().keys().hasOnly(sessionKeys())
+          && validEditable(incoming())
+          && (!changedKeys().hasAny(['participant_ids', 'participant_count'])
+              || (incoming().participant_ids is list
+                  && existing().created_by in incoming().participant_ids
+                  && incoming().participant_count == incoming().participant_ids.size()));
+      }
+
+      allow get: if signedIn();
+      // Liste sorguları ya type == public filtresi, ya created_by == uid, ya da participant_ids array-contains uid içermeli
+      allow list: if signedIn() && (
+        existing().type == 'public'
+        || existing().created_by == uid()
+        || uid() in existing().participant_ids
+        || isAdmin());
+
+      allow create: if signedIn()
+        && incoming().keys().hasOnly(sessionKeys())
+        && incoming().created_by == uid()
+        && incoming().participant_ids == [uid()]
+        && incoming().participant_count == 1
+        && incoming().is_Active == true
+        && incoming().status == 'active'
+        && incoming().date is number
+        && validEditable(incoming())
+        && incoming().code is string
+        && existsAfter(docPath('session_codes', incoming().code))
+        && getAfter(docPath('session_codes', incoming().code)).data.session_id == sessionId;
+
+      allow update: if signedIn() && (isOwnerEdit() || isSelfJoin() || isSelfLeave() || isAdmin());
+      allow delete: if isOwner() || isAdmin();
+    }
+
+    // ---------- measurements/{id} ----------
+    // Açık bilim verisi: oturum açmış herkes okur. Yazma kuralları veri kalitesini korur.
+    match /measurements/{measurementId} {
+      function measurementKeys() {
+        return ['sqm_value', 'bortle_class', 'location', 'geohash', 'orientation', 'timestamp', 'created_at',
+                'device_id', 'is_test', 'observer_uid', 'observer_name', 'altitude', 'note',
+                'session_id', 'session_name', 'weather', 'moon', 'observing', 'sqm_temperature', 'app_version'];
+      }
+
+      function ownerOf(d) { return d.get('observer_uid', d.get('device_id', '')); }
+
+      function sessionAllowsMe(sid) {
+        let s = get(docPath('sessions', sid)).data;
+        return s.created_by == uid() || uid() in s.get('participant_ids', []);
+      }
+
+      function validMeasurement(d) {
+        return d.keys().hasOnly(measurementKeys())
+          && d.keys().hasAll(['sqm_value', 'bortle_class', 'location', 'geohash', 'timestamp',
+                              'created_at', 'device_id', 'observer_uid', 'is_test'])
+          && d.observer_uid == uid()
+          && d.device_id == uid()
+          && d.is_test is bool
+          && d.sqm_value is number
+          && d.sqm_value >= 0 && d.sqm_value <= 25
+          // Test olmayan ölçüm gerçekçi gece aralığında olmalı (AppConstants.MPSAS_MIN..MAX)
+          && (d.is_test == true || d.sqm_value >= 10)
+          && d.bortle_class is int && d.bortle_class >= 1 && d.bortle_class <= 9
+          && d.location is latlng
+          && isStr(d.geohash, 1, 12)
+          && d.timestamp is timestamp
+          && d.timestamp <= request.time + duration.value(5, 'm')
+          && d.timestamp >= request.time - duration.value(30, 'd')
+          && d.created_at == request.time
+          && isOptStr(d.get('note', null), 500)
+          && isOptStr(d.get('observer_name', null), 40)
+          && isOptStr(d.get('session_name', null), 80)
+          && isOptNum(d.get('altitude', null))
+          && isOptNum(d.get('sqm_temperature', null))
+          && (!('orientation' in d) || d.orientation is map)
+          && (!('weather' in d) || d.weather is map)
+          && (!('moon' in d) || d.moon is map)
+          && (!('observing' in d) || d.observing is map)
+          && (!('session_id' in d) || d.session_id == null
+              || (isStr(d.session_id, 1, 128) && sessionAllowsMe(d.session_id)));
+      }
+
+      function isSessionOrganizer() {
+        return existing().get('session_id', null) is string
+          && get(docPath('sessions', existing().session_id)).data.created_by == uid();
+      }
+
+      allow read: if signedIn();
+      allow create: if signedIn() && validMeasurement(incoming());
+      // Sahibi sadece notu düzenleyebilir ve ölçümü teste çevirebilir (geri alamaz)
+      allow update: if signedIn() && ownerOf(existing()) == uid()
+        && changedKeys().hasOnly(['note', 'is_test'])
+        && isOptStr(incoming().get('note', null), 500)
+        && (!changedKeys().hasAny(['is_test']) || incoming().is_test == true);
+      allow delete: if signedIn() && (ownerOf(existing()) == uid() || isSessionOrganizer() || isAdmin());
+    }
+
+    // ---------- Diğer her şey kapalı ----------
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
