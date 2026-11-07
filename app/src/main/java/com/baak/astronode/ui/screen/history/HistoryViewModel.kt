@@ -14,6 +14,8 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -66,8 +68,9 @@ class HistoryViewModel @Inject constructor(
 
     val currentUid: String? get() = firebaseAuthManager.currentUid
 
-    val measurements: StateFlow<List<SkyMeasurement>> = firestoreManager
-        .getMeasurements()
+    /** Sadece kendi ölçümlerim (önceki sürüm herkesin ölçümünü gösteriyordu). */
+    val measurements: StateFlow<List<SkyMeasurement>> = firebaseAuthManager.uid
+        .flatMapLatest { uid -> if (uid != null) firestoreManager.getMyMeasurements(uid) else flowOf(emptyList()) }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
@@ -152,7 +155,9 @@ class HistoryViewModel @Inject constructor(
         viewModelScope.launch {
             val uid = firebaseAuthManager.currentUid
             if (uid != null) {
-                firestoreManager.deleteMeasurement(measurementId, uid)
+                firestoreManager.deleteMeasurement(measurementId, uid).onFailure {
+                    _exportState.value = ExportState.Error(it.message ?: "Silme başarısız")
+                }
             }
         }
     }

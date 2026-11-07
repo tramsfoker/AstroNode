@@ -7,14 +7,12 @@ import com.baak.astronode.data.firebase.FirebaseAuthManager
 import com.baak.astronode.data.firebase.FirestoreManager
 import com.baak.astronode.data.session.SessionSelectionManager
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -29,15 +27,8 @@ class SessionViewModel @Inject constructor(
 
     val currentUid: String? get() = firebaseAuthManager.currentUid
 
-    private val uidFlow = flow {
-        while (true) {
-            emit(firebaseAuthManager.currentUid)
-            delay(3000)
-        }
-    }
-
     /** Kendi oluşturduğun veya katıldığın session'lar (tüm tipler) */
-    val myActiveSessions: StateFlow<List<Session>> = uidFlow
+    val myActiveSessions: StateFlow<List<Session>> = firebaseAuthManager.uid
         .flatMapLatest { uid ->
             if (uid != null) firestoreManager.getMyActiveSessions(uid)
             else flowOf(emptyList())
@@ -80,8 +71,13 @@ class SessionViewModel @Inject constructor(
         viewModelScope.launch {
             val uid = try {
                 firebaseAuthManager.ensureAnonymousAuth()
-            } catch (_: Exception) {
-                ""
+            } catch (e: Exception) {
+                _error.value = e.message ?: "Oturum açılamadı"
+                return@launch
+            }
+            if (name.isBlank()) {
+                _error.value = "Etkinlik adı boş olamaz"
+                return@launch
             }
             val organizerName = firebaseAuthManager.currentUserDisplayName?.takeIf { it.isNotBlank() }
                 ?: "Organizatör"
@@ -101,10 +97,10 @@ class SessionViewModel @Inject constructor(
 
     fun joinSessionByCode(code: String) {
         viewModelScope.launch {
-            val uid = currentUid ?: try {
+            val uid = try {
                 firebaseAuthManager.ensureAnonymousAuth()
-            } catch (_: Exception) {
-                _error.value = "Oturum açmanız gerekir"
+            } catch (e: Exception) {
+                _error.value = e.message ?: "Oturum açmanız gerekir"
                 return@launch
             }
             firestoreManager.joinSessionByCode(code, uid).fold(
@@ -130,7 +126,7 @@ class SessionViewModel @Inject constructor(
 
     fun endSession(sessionId: String) {
         viewModelScope.launch {
-            firestoreManager.endSession(sessionId)
+            firestoreManager.endSession(sessionId).onFailure { _error.value = it.message }
             if (sessionSelectionManager.selectedSession.value?.id == sessionId) {
                 sessionSelectionManager.selectSession(null)
             }
@@ -139,7 +135,7 @@ class SessionViewModel @Inject constructor(
 
     fun cancelSession(sessionId: String) {
         viewModelScope.launch {
-            firestoreManager.cancelSession(sessionId)
+            firestoreManager.cancelSession(sessionId).onFailure { _error.value = it.message }
             if (sessionSelectionManager.selectedSession.value?.id == sessionId) {
                 sessionSelectionManager.selectSession(null)
             }
@@ -148,6 +144,7 @@ class SessionViewModel @Inject constructor(
 
     suspend fun canDeleteSession(session: Session): Boolean {
         val count = firestoreManager.getMeasurementCountBySession(session.id)
+        if (count < 0) return false // sayı alınamadı (offline) — güvenli tarafta kal
         val participants = session.participantIds.size.let { if (it > 0) it else (session.participantCount ?: 0) }
         return count == 0 && participants <= 1
     }
@@ -155,12 +152,15 @@ class SessionViewModel @Inject constructor(
     fun deleteSession(session: Session) {
         viewModelScope.launch {
             if (canDeleteSession(session)) {
-                firestoreManager.deleteSession(session.id)
+                firestoreManager.deleteSession(session).onFailure {
+                    _error.value = "Etkinlik silinemedi: ${it.message}"
+                    return@launch
+                }
                 if (sessionSelectionManager.selectedSession.value?.id == session.id) {
                     sessionSelectionManager.selectSession(null)
                 }
             } else {
-                _error.value = "Etkinlik silinemez: katılımcı veya ölçüm var"
+                _error.value = "Etkinlik silinemez: katılımcı veya ölçüm var (ya da internet yok)"
             }
         }
     }
@@ -178,7 +178,8 @@ class SessionViewModel @Inject constructor(
         _sessionForDetail.value = session
         if (session != null) {
             viewModelScope.launch {
-                _detailMeasurementCount.value = firestoreManager.getMeasurementCountBySession(session.id)
+                _detailMeasurementCount.value =
+                    firestoreManager.getMeasurementCountBySession(session.id).coerceAtLeast(0)
             }
         }
     }

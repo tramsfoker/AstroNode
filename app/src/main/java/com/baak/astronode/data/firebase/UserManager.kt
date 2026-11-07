@@ -1,16 +1,18 @@
 package com.baak.astronode.data.firebase
 
+import android.util.Log
 import com.baak.astronode.core.constants.AppConstants
 import com.baak.astronode.core.model.Session
 import com.baak.astronode.core.model.UserProfile
 import com.baak.astronode.core.model.UserSettings
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.FirebaseFirestoreException
 import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.SetOptions
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
-import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.tasks.await
@@ -23,46 +25,51 @@ class UserManager @Inject constructor(
 ) {
 
     private val db = FirebaseFirestore.getInstance()
-    private val usersCollection = db.collection("users")
+    private val usersCollection = db.collection(AppConstants.FIRESTORE_COLLECTION_USERS)
     private val measurementsCollection = db.collection(AppConstants.FIRESTORE_COLLECTION_MEASUREMENTS)
 
+    /**
+     * Profil yoksa oluşturur, varsa sadece günceller. Okuma hatasında (ör. offline + cache boş)
+     * mevcut profilin üzerine YAZMAZ — önceki sürüm bu durumda sayaçları sıfırlıyordu.
+     */
     suspend fun ensureUserProfile(uid: String, displayName: String?): UserProfile {
-        try {
-            val doc = usersCollection.document(uid).get().await()
-            if (doc.exists()) {
-                val data = doc.data ?: emptyMap()
-                val profile = mapToUserProfile(uid, data)
-                usersCollection.document(uid).set(
-                    mapOf("last_active_at" to System.currentTimeMillis()),
-                    SetOptions.merge()
-                ).await()
-                return profile
-            }
-        } catch (_: Exception) { }
+        val cleanName = displayName?.trim()?.take(AppConstants.DISPLAY_NAME_MAX).orEmpty()
+        val doc = try {
+            usersCollection.document(uid).get().await()
+        } catch (e: FirebaseFirestoreException) {
+            Log.w(TAG, "Profil okunamadı, oluşturma ertelendi: ${e.message}")
+            return UserProfile(uid = uid, displayName = cleanName)
+        }
 
-        val profile = UserProfile(
-            uid = uid,
-            displayName = displayName ?: "",
-            role = "observer",
-            createdAt = System.currentTimeMillis(),
-            lastActiveAt = System.currentTimeMillis()
-        )
-        val data = mapOf(
-            "display_name" to profile.displayName,
-            "role" to profile.role,
-            "organization_id" to profile.organizationId,
-            "organization_name" to profile.organizationName,
-            "total_measurements" to profile.totalMeasurements,
-            "total_sessions" to profile.totalSessions,
-            "best_mpsas" to profile.bestMpsas,
-            "created_at" to profile.createdAt,
-            "last_active_at" to profile.lastActiveAt,
-            "settings" to mapOf(
-                "theme" to profile.settings.theme,
-                "unit" to profile.settings.unit
+        // Offline'da cache "yok" diyorsa sunucuda var olabilir: üzerine yazma riskine girme
+        if (!doc.exists() && doc.metadata.isFromCache) {
+            return UserProfile(uid = uid, displayName = cleanName)
+        }
+
+        if (doc.exists()) {
+            val profile = mapToUserProfile(uid, doc.data ?: emptyMap())
+            val updates = mutableMapOf<String, Any>("last_active_at" to System.currentTimeMillis())
+            if (cleanName.isNotBlank() && profile.displayName.isBlank()) updates["display_name"] = cleanName
+            usersCollection.document(uid).set(updates, SetOptions.merge())
+            return if (updates.containsKey("display_name")) profile.copy(displayName = cleanName) else profile
+        }
+
+        val now = System.currentTimeMillis()
+        val profile = UserProfile(uid = uid, displayName = cleanName, createdAt = now, lastActiveAt = now)
+        usersCollection.document(uid).set(
+            mapOf(
+                "display_name" to profile.displayName,
+                "role" to "observer",
+                "organization_id" to null,
+                "organization_name" to null,
+                "total_measurements" to 0,
+                "total_sessions" to 0,
+                "best_mpsas" to null,
+                "created_at" to now,
+                "last_active_at" to now,
+                "settings" to mapOf("theme" to profile.settings.theme, "unit" to profile.settings.unit)
             )
         )
-        usersCollection.document(uid).set(data).await()
         return profile
     }
 
@@ -73,99 +80,42 @@ class UserManager @Inject constructor(
                     trySend(null)
                     return@addSnapshotListener
                 }
-                if (snapshot != null && snapshot.exists()) {
-                    val data = snapshot.data ?: emptyMap()
-                    trySend(mapToUserProfile(uid, data))
-                } else {
-                    trySend(null)
-                }
+                trySend(snapshot?.takeIf { it.exists() }?.let { mapToUserProfile(uid, it.data ?: emptyMap()) })
             }
         awaitClose { listener.remove() }
     }
 
-    suspend fun updateDisplayName(uid: String, name: String): Result<Unit> {
-        return try {
-            usersCollection.document(uid).set(
-                mapOf(
-                    "display_name" to name,
-                    "last_active_at" to System.currentTimeMillis()
-                ),
-                SetOptions.merge()
-            ).await()
-            Result.success(Unit)
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
+    suspend fun updateDisplayName(uid: String, name: String): Result<Unit> =
+        merge(uid, mapOf("display_name" to name.trim().take(AppConstants.DISPLAY_NAME_MAX)))
+
+    suspend fun updateEmail(uid: String, email: String): Result<Unit> =
+        merge(uid, mapOf("email" to email.take(254)))
+
+    suspend fun updateSettings(uid: String, settings: UserSettings): Result<Unit> =
+        merge(uid, mapOf("settings" to mapOf("theme" to settings.theme, "unit" to settings.unit)))
+
+    private suspend fun merge(uid: String, fields: Map<String, Any>): Result<Unit> = try {
+        usersCollection.document(uid)
+            .set(fields + ("last_active_at" to System.currentTimeMillis()), SetOptions.merge())
+            .await()
+        Result.success(Unit)
+    } catch (e: Exception) {
+        Result.failure(e)
     }
 
-    suspend fun updateEmail(uid: String, email: String): Result<Unit> {
-        return try {
-            usersCollection.document(uid).set(
-                mapOf(
-                    "email" to email,
-                    "last_active_at" to System.currentTimeMillis()
-                ),
-                SetOptions.merge()
-            ).await()
-            Result.success(Unit)
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
-    }
-
-    suspend fun updateSettings(uid: String, settings: UserSettings): Result<Unit> {
-        return try {
-            usersCollection.document(uid).set(
-                mapOf(
-                    "settings" to mapOf(
-                        "theme" to settings.theme,
-                        "unit" to settings.unit
-                    ),
-                    "last_active_at" to System.currentTimeMillis()
-                ),
-                SetOptions.merge()
-            ).await()
-            Result.success(Unit)
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
-    }
-
-    suspend fun incrementMeasurementCount(uid: String, mpsas: Double): Result<Unit> {
-        return try {
-            val doc = usersCollection.document(uid).get().await()
-            val currentCount = (doc.getLong("total_measurements") ?: 0) + 1
-            val currentBest = doc.getDouble("best_mpsas")
-
-            val updates = mutableMapOf<String, Any?>(
-                "total_measurements" to currentCount,
-                "last_active_at" to System.currentTimeMillis()
-            )
-
-            if (currentBest == null || mpsas > currentBest) {
-                updates["best_mpsas"] = mpsas
-            }
-
-            usersCollection.document(uid).set(updates, SetOptions.merge()).await()
-            Result.success(Unit)
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
-    }
-
+    /** Ölçüm yaptığım etkinlikler (profil ekranı). */
     fun getUserSessions(uid: String): Flow<List<Session>> = getSessionIdsByUser(uid)
+        .distinctUntilChanged()
         .flatMapLatest { sessionIds ->
             flow {
-                val sessions = sessionIds.mapNotNull { sid ->
-                    firestoreManager.getSessionById(sid).first()
-                }
+                val sessions = sessionIds.mapNotNull { firestoreManager.getSessionOnce(it) }
                 emit(sessions.sortedByDescending { it.date })
             }
         }
 
     private fun getSessionIdsByUser(uid: String): Flow<List<String>> = callbackFlow {
         val listener = measurementsCollection
-            .whereEqualTo("device_id", uid)
+            .whereEqualTo("observer_uid", uid)
             .orderBy("timestamp", Query.Direction.DESCENDING)
             .limit(AppConstants.FIRESTORE_QUERY_LIMIT)
             .addSnapshotListener { snapshot, error ->
@@ -173,12 +123,13 @@ class UserManager @Inject constructor(
                     trySend(emptyList())
                     return@addSnapshotListener
                 }
-                val sessionIds = snapshot?.documents
-                    ?.mapNotNull { doc -> doc.getString("session_id") }
-                    ?.filter { it.isNotBlank() }
-                    ?.distinct()
-                    ?: emptyList()
-                trySend(sessionIds)
+                trySend(
+                    snapshot?.documents
+                        ?.mapNotNull { it.getString("session_id") }
+                        ?.filter { it.isNotBlank() }
+                        ?.distinct()
+                        ?: emptyList()
+                )
             }
         awaitClose { listener.remove() }
     }
@@ -193,7 +144,7 @@ class UserManager @Inject constructor(
             organizationName = data["organization_name"] as? String,
             totalMeasurements = (data["total_measurements"] as? Number)?.toInt() ?: 0,
             totalSessions = (data["total_sessions"] as? Number)?.toInt() ?: 0,
-            bestMpsas = data["best_mpsas"] as? Double,
+            bestMpsas = (data["best_mpsas"] as? Number)?.toDouble(),
             createdAt = (data["created_at"] as? Number)?.toLong() ?: 0L,
             lastActiveAt = (data["last_active_at"] as? Number)?.toLong() ?: 0L,
             settings = UserSettings(
@@ -201,5 +152,9 @@ class UserManager @Inject constructor(
                 unit = settingsMap?.get("unit") as? String ?: "mpsas"
             )
         )
+    }
+
+    private companion object {
+        const val TAG = "USER"
     }
 }

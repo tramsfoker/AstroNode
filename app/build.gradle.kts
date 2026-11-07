@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -5,7 +7,17 @@ plugins {
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt)
     alias(libs.plugins.google.services)
+    alias(libs.plugins.firebase.crashlytics)
 }
+
+
+// İmzalama bilgileri: keystore.properties (git'e girmez) veya ortam değişkenleri (CI)
+val keystoreProps = Properties().apply {
+    val f = rootProject.file("keystore.properties")
+    if (f.exists()) f.inputStream().use { load(it) }
+}
+fun signingValue(key: String, env: String): String? =
+    keystoreProps.getProperty(key) ?: System.getenv(env)
 
 android {
     namespace = "com.baak.astronode"
@@ -15,19 +27,40 @@ android {
         applicationId = "com.baak.astronode"
         minSdk = 24
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0"
+        // Her Play yüklemesinde versionCode artırılmalı
+        versionCode = 2
+        versionName = "1.2.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    signingConfigs {
+        create("release") {
+            val storePath = signingValue("storeFile", "ASTRONODE_KEYSTORE_PATH")
+            if (storePath != null) {
+                storeFile = rootProject.file(storePath)
+                storePassword = signingValue("storePassword", "ASTRONODE_KEYSTORE_PASSWORD")
+                keyAlias = signingValue("keyAlias", "ASTRONODE_KEY_ALIAS")
+                keyPassword = signingValue("keyPassword", "ASTRONODE_KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
+        debug {
+            // Not: applicationIdSuffix eklemek için Firebase'de ayrı uygulama (google-services.json) gerekir
+            versionNameSuffix = "-debug"
+        }
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            // Anahtar yoksa imzasız derlenir (Play'e yüklemek için keystore.properties gerekir)
+            val release = signingConfigs.getByName("release")
+            if (release.storeFile != null) signingConfig = release
         }
     }
     compileOptions {
@@ -39,6 +72,12 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
+    }
+    lint {
+        abortOnError = true
+        checkReleaseBuilds = true
+        warningsAsErrors = false
     }
 }
 
@@ -65,9 +104,15 @@ dependencies {
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.auth.ktx)
     implementation(libs.firebase.firestore.ktx)
+    implementation(libs.firebase.crashlytics)
+    implementation(libs.firebase.analytics)
+    implementation(libs.firebase.appcheck.playintegrity)
+    debugImplementation(libs.firebase.appcheck.debug)
 
-    // Google Sign-In
-    implementation("com.google.android.gms:play-services-auth:21.0.0")
+    // Google ile giriş (Credential Manager)
+    implementation(libs.androidx.credentials)
+    implementation(libs.androidx.credentials.play.services)
+    implementation(libs.googleid)
 
     // Location
     implementation(libs.play.services.location)
@@ -77,14 +122,14 @@ dependencies {
     implementation(libs.maps.compose)
 
     // GeoHash & Map Clustering
-    implementation("com.firebase:geofire-android-common:3.2.0")
-    implementation("com.google.maps.android:android-maps-utils:3.8.0")
+    implementation(libs.geofire.common)
+    implementation(libs.maps.utils)
 
     // USB Serial
     implementation(libs.usb.serial)
 
     // OkHttp
-    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    implementation(libs.okhttp)
 
     // Coroutines
     implementation(libs.kotlinx.coroutines.core)

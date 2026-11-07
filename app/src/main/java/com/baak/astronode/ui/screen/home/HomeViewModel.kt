@@ -96,7 +96,7 @@ class HomeViewModel @Inject constructor(
     private val _weatherWidgetState = MutableStateFlow(WeatherWidgetState())
     val weatherWidgetState: StateFlow<WeatherWidgetState> = _weatherWidgetState.asStateFlow()
 
-    private val prefs = context.getSharedPreferences("astro_node_profile", android.content.Context.MODE_PRIVATE)
+    private val prefs = context.getSharedPreferences(AppConstants.PREFS_PROFILE, android.content.Context.MODE_PRIVATE)
 
     private val _measurementState = MutableStateFlow(MeasurementUiState())
     private val _needsProfileSetup = MutableStateFlow(false)
@@ -287,9 +287,11 @@ class HomeViewModel @Inject constructor(
     }
 
     suspend fun completeProfileSetup(displayName: String) {
-        val uid = firebaseAuthManager.ensureAnonymousAuth()
-        userManager.ensureUserProfile(uid, displayName)
-        userManager.updateDisplayName(uid, displayName).onFailure { /* Firestore güncelleme */ }
+        val uid = firebaseAuthManager.uidOrNull()
+        if (uid != null) {
+            userManager.ensureUserProfile(uid, displayName)
+            userManager.updateDisplayName(uid, displayName)
+        }
         prefs.edit().putBoolean(AppConstants.PREF_PROFILE_SETUP_DONE, true).apply()
         _needsProfileSetup.value = false
     }
