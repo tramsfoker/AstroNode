@@ -11,7 +11,8 @@
     "test:functions": "firebase emulators:exec --only firestore --project demo-astronode-fn \"cd functions && node --test --test-concurrency=1 test/*.test.mjs\"",
     "deploy:functions": "cd functions && npm ci && cd .. && firebase deploy --only functions",
     "deploy:all": "firebase deploy --only firestore:rules,firestore:indexes,storage,hosting,functions",
-    "test:all": "npm test && npm run test:functions && npm run test:tools"
+    "test:all": "npm test && npm run test:functions && npm run test:tools",
+    "test:e2e": "firebase emulators:exec --only auth,firestore,functions --project demo-astronode-fn \"node test-e2e/admin-panel.e2e.mjs\""
   },
   "devDependencies": {
     "@firebase/rules-unit-testing": "^4.0.1",

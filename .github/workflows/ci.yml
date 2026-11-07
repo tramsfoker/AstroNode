@@ -36,9 +36,9 @@ jobs:
           retention-days: 7
 
   firebase:
-    name: Firebase kuralları + göç script'i
+    name: Firebase kuralları, fonksiyonlar, admin paneli
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     defaults:
       run:
         working-directory: firebase
@@ -64,3 +64,15 @@ jobs:
         run: npm run test:functions
       - name: Göç script'i testi
         run: npm run test:tools
+      - name: Admin paneli uçtan uca testi (Chromium)
+        run: |
+          npm install --no-save playwright@1.49.1
+          npx playwright install --with-deps chromium
+          npm run test:e2e
+      - name: E2E ekran görüntüleri
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: admin-panel-screenshots
+          path: firebase/test-e2e/out/
+          retention-days: 7

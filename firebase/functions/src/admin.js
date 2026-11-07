@@ -72,12 +72,19 @@ export async function resolveReport({ db, authAdmin }, caller, { reportId, actio
     }
   }
   if (r.target_type === 'user') ownerUid = r.target_id;
+  let banned = false;
   if (action === 'ban_user' && ownerUid) {
-    await authAdmin.updateUser(ownerUid, { disabled: true });
-    await authAdmin.revokeRefreshTokens(ownerUid);
+    try {
+      await authAdmin.updateUser(ownerUid, { disabled: true });
+      await authAdmin.revokeRefreshTokens(ownerUid);
+      banned = true;
+    } catch (e) {
+      // Hesap zaten silinmişse içerik yine de kaldırılır, rapor kapanır
+      if (e?.code !== 'auth/user-not-found') throw e;
+    }
   }
-  await ref.update({ status: 'resolved', action, resolved_by: caller.uid, resolved_at: FieldValue.serverTimestamp() });
-  return { ok: true };
+  await ref.update({ status: 'resolved', action, banned, resolved_by: caller.uid, resolved_at: FieldValue.serverTimestamp() });
+  return { ok: true, banned };
 }
 
 export async function findUser({ authAdmin }, caller, { query }) {

@@ -178,6 +178,16 @@ describe('admin işlemleri', () => {
     assert.equal((await db.doc('reports/rp1').get()).data().status, 'resolved');
   });
 
+  test('rapor: sahibi silinmiş hesapsa içerik yine silinir, rapor kapanır', async () => {
+    const ghostAuth = { ...authAdmin, updateUser: async () => { const e = new Error('no user'); e.code = 'auth/user-not-found'; throw e; } };
+    await db.doc('measurements/ghost').set({ observer_uid: 'deleted-user', sqm_value: 25 });
+    await db.doc('reports/rp2').set({ target_type: 'measurement', target_id: 'ghost', status: 'open' });
+    const res = await admin.resolveReport({ db, authAdmin: ghostAuth }, adminCaller, { reportId: 'rp2', action: 'ban_user' });
+    assert.equal(res.banned, false);
+    assert.equal((await db.doc('measurements/ghost').get()).exists, false);
+    assert.equal((await db.doc('reports/rp2').get()).data().status, 'resolved');
+  });
+
   test('hesap silinince tüm verisi temizlenir', async () => {
     await db.doc('users/gone').set({ display_name: 'x' });
     await db.doc('measurements/g1').set({ observer_uid: 'gone' });
