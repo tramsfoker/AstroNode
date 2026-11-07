@@ -52,9 +52,15 @@ jobs:
         with:
           node-version: "22"
           cache: npm
-          cache-dependency-path: firebase/package-lock.json
+          cache-dependency-path: |
+            firebase/package-lock.json
+            firebase/functions/package-lock.json
       - run: npm ci
+      - run: npm ci
+        working-directory: firebase/functions
       - name: Firestore kural testleri
         run: npm test
+      - name: Cloud Functions testleri
+        run: npm run test:functions
       - name: Göç script'i testi
         run: npm run test:tools

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:media="http://search.yahoo.com/mrss/">
+<channel><title>Test</title>
+<item><title><![CDATA[Galaxy &amp; Nebula]]></title><link>https://example.org/a</link>
+<description><![CDATA[<p>Beautiful <b>image</b> <img src="https://example.org/a.jpg"/> of space</p>]]></description>
+<pubDate>Fri, 06 Nov 2026 10:00:00 GMT</pubDate></item>
+<item><title>Dark skies</title><link>https://example.org/b</link><description>Plain text</description>
+<enclosure url="https://example.org/b.png" type="image/png" length="1"/><pubDate>Thu, 05 Nov 2026 10:00:00 GMT</pubDate></item>
+<item><title>Bad link</title><link>javascript:alert(1)</link></item>
+</channel></rss>

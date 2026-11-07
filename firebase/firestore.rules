@@ -10,6 +10,8 @@ service cloud.firestore {
     function signedIn() { return request.auth != null; }
     function uid() { return request.auth.uid; }
     function isAdmin() { return signedIn() && request.auth.token.get('admin', false) == true; }
+    function isOrganizer() { return signedIn() && request.auth.token.get('organizer', false) == true; }
+    function myOrgId() { return request.auth.token.get('org_id', null); }
     function incoming() { return request.resource.data; }
     function existing() { return resource.data; }
     function changedKeys() { return request.resource.data.diff(resource.data).affectedKeys(); }
@@ -86,8 +88,11 @@ service cloud.firestore {
     match /sessions/{sessionId} {
       function sessionKeys() {
         return ['name', 'description', 'date', 'organizer_name', 'participant_count', 'created_by',
-                'is_Active', 'status', 'type', 'participant_ids', 'code', 'ended_at'];
+                'is_Active', 'status', 'type', 'participant_ids', 'code', 'ended_at',
+                'measurement_count', 'mpsas_sum', 'best_mpsas'];
       }
+      // Cloud Functions tarafından tutulan alanlar — istemci değiştiremez
+      function serverManagedKeys() { return ['measurement_count', 'mpsas_sum', 'best_mpsas']; }
       function validType(t) { return t in ['public', 'private', 'invite_only']; }
       function validStatus(s) { return s in ['active', 'completed', 'cancelled']; }
 
@@ -126,6 +131,7 @@ service cloud.firestore {
       function isOwnerEdit() {
         return isOwner()
           && !changedKeys().hasAny(['created_by', 'code', 'date'])
+          && !changedKeys().hasAny(serverManagedKeys())
           && incoming().keys().hasOnly(sessionKeys())
           && validEditable(incoming())
           && (!changedKeys().hasAny(['participant_ids', 'participant_count'])
@@ -144,6 +150,7 @@ service cloud.firestore {
 
       allow create: if signedIn()
         && incoming().keys().hasOnly(sessionKeys())
+        && !incoming().keys().hasAny(serverManagedKeys())
         && incoming().created_by == uid()
         && incoming().participant_ids == [uid()]
         && incoming().participant_count == 1
@@ -219,6 +226,93 @@ service cloud.firestore {
         && isOptStr(incoming().get('note', null), 500)
         && (!changedKeys().hasAny(['is_test']) || incoming().is_test == true);
       allow delete: if signedIn() && (ownerOf(existing()) == uid() || isSessionOrganizer() || isAdmin());
+    }
+
+    // ---------- İstatistikler (sadece Cloud Functions yazar) ----------
+    match /region_stats/{id} {
+      allow read: if signedIn();
+      allow write: if false;
+    }
+    match /sky_cells/{id} {
+      allow read: if signedIn();
+      allow write: if false;
+    }
+
+    // ---------- Haberler & duyurular ----------
+    // RSS haberlerini Cloud Functions yazar; duyuruları (type == post) admin veya kendi organizasyonu adına organizatör yazar.
+    match /news/{newsId} {
+      function validPost(d) {
+        return d.keys().hasOnly(['type', 'title', 'body', 'link', 'image_url', 'author_uid', 'author_name',
+                                 'org_id', 'org_name', 'published_at', 'pinned', 'lang', 'event_date'])
+          && d.type == 'post'
+          && isStr(d.title, 3, 200)
+          && isStr(d.body, 1, 5000)
+          && isOptStr(d.get('link', null), 500)
+          && (d.get('link', null) == null || d.link.matches('^https?://.*'))
+          && isOptStr(d.get('image_url', null), 500)
+          && (d.get('image_url', null) == null || d.image_url.matches('^https://.*'))
+          && isOptStr(d.get('author_name', null), 60)
+          && isOptStr(d.get('org_name', null), 100)
+          && d.author_uid == uid()
+          && d.published_at is timestamp
+          && d.get('pinned', false) is bool
+          && (d.get('pinned', false) == false || isAdmin())
+          && (d.get('event_date', null) == null || d.event_date is timestamp)
+          && (isAdmin() || (isOrganizer() && d.get('org_id', null) == myOrgId() && myOrgId() != null));
+      }
+      allow read: if signedIn();
+      allow create: if signedIn() && validPost(incoming()) && incoming().published_at == request.time;
+      allow update: if signedIn() && existing().type == 'post'
+        && (isAdmin() || existing().author_uid == uid())
+        && validPost(incoming())
+        && incoming().published_at == existing().published_at;
+      allow delete: if isAdmin() || (signedIn() && existing().get('author_uid', '') == uid());
+    }
+
+    // RSS kaynak listesi — sadece admin
+    match /feed_sources/{id} {
+      allow read, write: if isAdmin();
+    }
+
+    // ---------- Organizasyonlar ----------
+    match /organizations/{orgId} {
+      allow read: if signedIn();
+      allow write: if false; // onay Cloud Function ile
+    }
+
+    match /organization_requests/{reqId} {
+      allow get: if signedIn() && (existing().requester_uid == uid() || isAdmin());
+      allow list: if isAdmin() || (signedIn() && existing().requester_uid == uid());
+      allow create: if signedIn()
+        && incoming().keys().hasOnly(['requester_uid', 'requester_name', 'org_name', 'description',
+                                      'city', 'website', 'contact_email', 'status', 'created_at'])
+        && incoming().requester_uid == uid()
+        && incoming().status == 'pending'
+        && incoming().created_at == request.time
+        && isStr(incoming().org_name, 3, 100)
+        && isOptStr(incoming().get('requester_name', null), 60)
+        && isOptStr(incoming().get('description', null), 1000)
+        && isOptStr(incoming().get('city', null), 60)
+        && isOptStr(incoming().get('website', null), 200)
+        && isStr(incoming().contact_email, 5, 254)
+        && incoming().contact_email.matches('^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$');
+      allow delete: if signedIn() && existing().requester_uid == uid() && existing().status == 'pending';
+      allow update: if false;
+    }
+
+    // ---------- İçerik bildirme (Play UGC zorunluluğu) ----------
+    match /reports/{reportId} {
+      allow read: if isAdmin();
+      allow create: if signedIn()
+        && incoming().keys().hasOnly(['reporter_uid', 'target_type', 'target_id', 'reason', 'details', 'status', 'created_at'])
+        && incoming().reporter_uid == uid()
+        && incoming().target_type in ['measurement', 'news', 'session', 'user']
+        && isStr(incoming().target_id, 1, 128)
+        && incoming().reason in ['spam', 'wrong_data', 'offensive', 'privacy', 'other']
+        && isOptStr(incoming().get('details', null), 500)
+        && incoming().status == 'open'
+        && incoming().created_at == request.time;
+      allow update, delete: if false;
     }
 
     // ---------- Diğer her şey kapalı ----------

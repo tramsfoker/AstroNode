@@ -7,7 +7,11 @@
     "deploy:rules": "firebase deploy --only firestore:rules,firestore:indexes,storage",
     "test:tools": "firebase emulators:exec --only firestore --project astronode-50a6c \"node tools/test-migrate.mjs\"",
     "migrate": "node tools/migrate-v2.mjs",
-    "set-admin": "node tools/set-admin.mjs"
+    "set-admin": "node tools/set-admin.mjs",
+    "test:functions": "firebase emulators:exec --only firestore --project demo-astronode-fn \"cd functions && node --test --test-concurrency=1 test/*.test.mjs\"",
+    "deploy:functions": "cd functions && npm ci && cd .. && firebase deploy --only functions",
+    "deploy:all": "firebase deploy --only firestore:rules,firestore:indexes,storage,hosting,functions",
+    "test:all": "npm test && npm run test:functions && npm run test:tools"
   },
   "devDependencies": {
     "@firebase/rules-unit-testing": "^4.0.1",
