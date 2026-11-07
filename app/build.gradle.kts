@@ -74,6 +74,10 @@ android {
         compose = true
         buildConfig = true
     }
+    testOptions {
+        // android.util.Log vb. JVM testlerinde hata fırlatmasın
+        unitTests.isReturnDefaultValues = true
+    }
     lint {
         abortOnError = true
         checkReleaseBuilds = true

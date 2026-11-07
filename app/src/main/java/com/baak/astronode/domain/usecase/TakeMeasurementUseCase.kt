@@ -48,9 +48,12 @@ class TakeMeasurementUseCase @Inject constructor(
             val sqmReading = sqmUsbManager.readMeasurement()
                 ?: return@withTimeout Result.failure(Exception("SQM okunamadı"))
             if (MeasurementValidator.validate(sqmReading.mpsas) == MeasurementValidator.Result.INVALID) {
-                return@withTimeout Result.failure(
-                    Exception("SQM geçersiz bir değer döndürdü (${sqmReading.mpsas}). Cihazı kontrol edip tekrar deneyin.")
-                )
+                val msg = if (sqmReading.mpsas < 0) {
+                    "Ortam ölçüm için çok aydınlık (SQM: ${sqmReading.mpsas}). Karanlıkta tekrar deneyin."
+                } else {
+                    "SQM geçersiz bir değer döndürdü (${sqmReading.mpsas}). Cihazı kontrol edip tekrar deneyin."
+                }
+                return@withTimeout Result.failure(Exception(msg))
             }
 
             // b) Bortle sınıfı hesapla

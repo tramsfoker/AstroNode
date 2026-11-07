@@ -8,6 +8,7 @@ import androidx.credentials.CustomCredential
 import androidx.credentials.GetCredentialRequest
 import androidx.credentials.exceptions.GetCredentialCancellationException
 import androidx.credentials.exceptions.GetCredentialException
+import androidx.credentials.exceptions.NoCredentialException
 import com.baak.astronode.R
 import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
@@ -42,6 +43,8 @@ class GoogleCredentialHelper @Inject constructor() {
             }
         } catch (e: GetCredentialCancellationException) {
             Result.failure(GoogleSignInCancelledException())
+        } catch (e: NoCredentialException) {
+            Result.failure(Exception("Cihazda Google hesabı bulunamadı. Ayarlar'dan bir Google hesabı ekleyin.", e))
         } catch (e: GetCredentialException) {
             Log.w(TAG, "Google kimliği alınamadı: ${e.type} ${e.message}")
             Result.failure(Exception("Google ile giriş yapılamadı", e))

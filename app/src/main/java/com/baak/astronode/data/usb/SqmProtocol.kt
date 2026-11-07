@@ -11,7 +11,8 @@ data class SqmReading(
 
 object SqmProtocol {
 
-    private val tempRegex = Regex("""\s*([0-9.]+)C""")
+    // Sıcaklık eksi olabilir (ör. "-005.2C"); sadece büyük C (frekanstaki küçük "c" sayaç alanı değil)
+    private val tempRegex = Regex(""",\s*(-?[0-9]+(?:\.[0-9]+)?)C""")
 
     fun buildReadCommand(): ByteArray =
         AppConstants.SQM_READ_COMMAND.toByteArray(Charsets.US_ASCII)
@@ -19,11 +20,11 @@ object SqmProtocol {
     fun parseResponse(raw: String): SqmReading? {
         Log.d("SQM_PARSE", "Parse ediliyor: '$raw'")
 
-        val regex1 = Regex("""r,\s*([0-9]+[.,][0-9]+)m,""")
-        val regex2 = Regex("""([0-9]+[.,][0-9]+)m""")
-        val regex3 = Regex("""([0-9]+,[0-9]+)m""")
+        // Çok aydınlık ortamda SQM negatif değer döndürebilir (ör. "r,-09.42m"): işaret korunmalı
+        val regex1 = Regex("""r,\s*(-?[0-9]+[.,][0-9]+)m,""")
+        val regex2 = Regex("""(-?[0-9]+[.,][0-9]+)m""")
 
-        val match = regex1.find(raw) ?: regex2.find(raw) ?: regex3.find(raw)
+        val match = regex1.find(raw) ?: regex2.find(raw)
 
         if (match != null) {
             val valueStr = match.groupValues[1].replace(',', '.')

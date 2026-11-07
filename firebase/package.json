@@ -4,11 +4,17 @@
   "description": "AstroNode Firebase güvenlik kuralları ve testleri",
   "scripts": {
     "test": "firebase emulators:exec --only firestore --project demo-astronode \"node --test --test-concurrency=1 test/*.test.mjs\"",
-    "deploy:rules": "firebase deploy --only firestore:rules,firestore:indexes,storage"
+    "deploy:rules": "firebase deploy --only firestore:rules,firestore:indexes,storage",
+    "test:tools": "firebase emulators:exec --only firestore --project astronode-50a6c \"node tools/test-migrate.mjs\"",
+    "migrate": "node tools/migrate-v2.mjs",
+    "set-admin": "node tools/set-admin.mjs"
   },
   "devDependencies": {
     "@firebase/rules-unit-testing": "^4.0.1",
     "firebase": "^11.0.0",
-    "firebase-tools": "^14.0.0"
-  }
+    "firebase-admin": "^13.10.0",
+    "firebase-tools": "^14.0.0",
+    "geofire-common": "^6.0.0"
+  },
+  "type": "module"
 }
